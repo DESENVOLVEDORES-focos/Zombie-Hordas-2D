@@ -169,6 +169,6 @@ Sem colar código no chat. Sem pedir permissão para o que já está decidido aq
 |---|---|---|
 | 1 | `01-ESPECIFICACAO-ORIGINAL.md` | a base do projeto (este pacote não substitui) |
 | 2 | `02-ARQUITETURA.md` | como organizar arquivos, dados e o loop |
-| 3 | `03-PROMPT-EXECUCAO.md` | **o prompt para colar no chat de IA** |
+| 3 | `03-PROMPT-MESTRE.md` | **o prompt para colar no chat de IA** |
 | 4 | `04-BALANCEAMENTO.md` | os números (armas, zumbis, hordas, custos) |
 | 5 | `05-MAPAS-E-BACKLOG.md` | como criar mapa e o que fica para depois |
