@@ -1,6 +1,8 @@
-# BALANCEAMENTO — planilha única de números
+# BALANCEAMENTO — números do jogo
 
-> Documento 5 de 6. **Em qualquer conflito, este documento ganha.** Mudou algo? Muda aqui primeiro.
+> Documento 5 de 6. **Único lugar onde números de gameplay são decididos.** Em conflito com o doc 01 em
+> valores numéricos, este ganha; em regra de jogo, o doc 01 ganha.
+> Tudo aqui deve viver em `js/config.js`.
 
 ---
 
@@ -8,209 +10,143 @@
 
 | Stat | Valor |
 |---|---|
-| Vida | 100 |
-| Regeneração | 45 HP/s após **5 s** sem dano (estilo "respirar", não tanque) |
-| Velocidade | 210 px/s (195 com foco manual, 150 recarregando) |
+| Vida | 100 (+10 por nível de Vitalidade no lobby) |
+| Regeneração | nenhuma por padrão (cura só por kit) |
+| Velocidade | 210 px/s |
 | Raio | 13 px |
 | Invencibilidade pós-dano | 0,35 s |
-| Slots de arma | 2 |
 | Moedas iniciais | 500 |
-| Almas iniciais | 0 |
-| Auto-aim | 40° de cone, alvo mais próximo com linha de visão, alcance da arma |
+| Slots de arma | 2 (teclas 1 e 2) |
+| Interação | **E** (comprar / reparar / recolher) |
 
-**Referência:** zumbi caminhante (60 HP na horda 1) morre em 6 tiros de pistola. A horda 1 leva ~40 s.
-
----
-
-## 2. Armas
-
-| # | Nome | Dano | Cadência (tiros/s) | Pente | Recarga | Alcance | Dispersão | Perfuração | Preço |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | **Pistola** (inicial) | 10 | 4,0 | 12 | 1,1 s | 420 | 1,5° | 0 | — (reserva infinita) |
-| 2 | **Calibre 12** "Trovão" | 9 × 6 pellets | 1,1 | 6 | 2,2 s | 260 | 9° | 0 | 500 |
-| 3 | **Rifle de Assalto** "Vetor" | 14 | 8,5 | 30 | 1,8 s | 520 | 2,5° | 0 | 1.000 |
-| 4 | **Submetralhadora** "Zumbido" | 9 | 13,0 | 45 | 1,6 s | 380 | 4,5° | 0 | 1.400 |
-| 5 | **Rifle Pesado** "Brasa" | 32 | 3,2 | 20 | 2,4 s | 640 | 1,0° | 1 | 1.900 |
-| 6 | **Metralhadora** "Muralha" | 15 | 16,0 | 120 | 3,4 s | 480 | 5,0° | 0 | 2.600 |
-| 7 | **Lançador** "Estilhaço" | 90 (raio 140) | 0,9 | 4 | 3,2 s | 600 | 3,0° | 0 | 3.400 |
-
-- Pente zera → **não atira**; `R` recarrega; reserva de munição limitada (comprar no ponto branco).
-- **Reserva inicial** por arma: 4× o pente (arredondado em múltiplos de 6). Custo de munição cheia:
-  60 (Calibre 12), 90 (Vetor/Zumbido), 120 (Brasa), 160 (Muralha), 200 (Estilhaço) — **+15% por horda**
-  após a 10, arredondado.
-- **Melhorias de arma** (placa azul, 1× cada por arma): +20% dano (400 + 100/horda), +50% pente (450),
-  −25% recarga (500).
-- Foco manual: +15% dano, dispersão ÷2, velocidade 195 px/s.
-
-**DPS de referência:** Pistola 40/s · Trovão 59/s · Vetor 119/s · Zumbido 117/s · Brasa 102/s (perfura) ·
-Muralha 240/s · Estilhaço 81/s em área.
+**Referência de DPS:** pistola 40/s. Zumbi comum na horda 1: 60 HP → 6 tiros.
 
 ---
 
-## 3. Zumbis
+## 2. Armas (comportamentos realmente diferentes)
 
-HP base vale na **horda 1**; multiplicadores na seção 4.
+| # | Nome | Dano | Cadência | Pente | Reserva | Recarga | Alcance | Dispersão | Comportamento próprio | Preço |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | **Pistola** | 10 | 4,0/s | 12 | ∞ | 1,1 s | 420 | 1,5° | reserva infinita: nunca fica sem arma | inicial |
+| 2 | **Calibre 12** | 9×6 bagos | 1,1/s | 6 | 24 | 2,2 s | 260 | 9° | 6 bagos: letal de perto, inútil longe, empurra zumbi | 500 |
+| 3 | **Zumbido** (SMG) | 9 | 13/s | 45 | 180 | 1,6 s | 380 | 4,5° | cadência alta, gasta munição rápido, mobilidade total | 1.400 |
+| 4 | **Vetor** (rifle) | 14 | 8,5/s | 30 | 120 | 1,8 s | 520 | 2,5° | equilíbrio, melhor alcance útil | 1.000 |
+| 5 | **Brasa** (rifle pesado) | 32 | 3,2/s | 20 | 60 | 2,4 s | 640 | 1,0° | perfura 1 zumbi, escala bem contra tanque | 1.900 |
+| 6 | **Estilhaço** (lançador) | 90 (raio 140) | 0,9/s | 4 | 12 | 3,2 s | 600 | 3° | explosão em área, perigoso de perto, abre caminho | 3.400 |
 
-| Tipo | HP | Dano/hit | Veloc. | Raio | Moedas | XP | Entra na horda |
-|---|---|---|---|---|---|---|---|
-| **Caminhante** | 60 | 12 | 70 | 15 | 10 | 1 | 1 |
-| **Frenético** | 45 | 15 | 128 (dash 190) | 13 | 15 | 2 | 11 |
-| **Rastejante** | 35 | 8 | 88 | 11 | 10 | 1 | 16 |
-| **Tanque** | 380 | 22 | 52 | 24 | 40 | 6 | 21 |
-| **Cuspidor** | 120 | 10 (projétil) | 55 | 15 | 25 | 4 | 31 |
-| **Explosivo** | 70 | 45 (raio 90) | 95 | 14 | 20 | 3 | 34 |
-| **Espreitador** | 90 | 18 | 105 | 14 | 30 | 5 | 37 |
+**Melhorias de arma** (ponto azul no mapa, uma vez cada por arma): +20% dano (400 + 25/horda),
++50% pente (450), −25% recarga (500).
 
-Comportamento (números):
-| Tipo | Detalhe |
-|---|---|
-| Caminhante | persegue direto; leve balanço lateral |
-| Frenético | 3 fases: andar → windup 0,25 s → **dash 0,55 s** a 190 px/s; recupera 1,1 s |
-| Rastejante | corpo baixo (hitbox circular pequena), atravessa vaga de barricada em 3× o tempo normal |
-| Tanque | empurra o jogador (240 px/s) ao encostar; **imune a empurrão** de explosão |
-| Cuspidor | mantém 200–260 px; recua se aproximar; cospe a cada 2,6 s (projétil 300 px/s, 2 s de vida) |
-| Explosivo | telegraph de 0,45 s pulsando; explode ao morrer **ou** ao tocar (ambos com dano cheio) |
-| Espreitador | surge de spawns `roof`/vão; 1,2 s imóvel e invulnerável, depois cai e persegue |
-
-**Regras gerais:** dano de contato tem cooldown de **0,8 s por zumbi**; zumbi que bate em **barricada**
-faz 30 dano/s (não o dano/hit acima); contra **torreta**, 18 dano/s.
+**Munição** comprada nos pontos brancos: repõe 4× o pente. Preço base: 60 (calibre 12), 80 (vetor/zumbido),
+110 (brasa), 150 (estilhaço), +15% por horda após a 10.
 
 ---
 
-## 4. Curva de dificuldade (5 faixas, como no briefing)
+## 3. Zumbis (6 tipos — spec §7)
 
-Multiplicadores aplicados sobre a base:
+| Tipo | Nome | HP | Dano | Velocidade | Raio | Moedas | Entra na horda | Comportamento |
+|---|---|---|---|---|---|---|---|---|
+| 1 | **Comum** | 60 | 12 | 70 | 15 | 10 | 1 | persegue direto; balanço lateral leve |
+| 2 | **Frenético** | 45 | 15 | 128 (arrancada 190) | 13 | 15 | 11 | 3 fases: andar → agachar 0,25 s → arrancada 0,55 s |
+| 3 | **Explosivo** | 70 | 45 (raio 90) | 95 | 14 | 20 | 20 | corre e explode ao tocar (ou ao morrer); dano em estruturas |
+| 4 | **Cuspidor** | 120 | 10 (projétil) | 55 | 15 | 25 | 20 | mantém 200–260 px, recua se aproximar, cospe a cada 2,6 s |
+| 5 | **Tanque** | 380 | 22 | 52 | 24 | 35 | 15 | empurra o jogador, imune a empurrão, muito lento |
+| 6 | **Rastejante** | 35 | 8 | 88 | 11 | 10 | 21 | hitbox baixa (difícil de acertar), atravessa barricada 3× mais devagar |
+
+Valores de moeda seguem a spec (§8). Orbita do tanque: nunca mais de 2 vivos ao mesmo tempo antes da
+horda 25.
+
+---
+
+## 4. Escalonamento de hordas (suave — spec §6)
 
 ```
-faixa A (horda 1–10):   hp 1.0 + 0.06*(h-1)      dmg 1.0 + 0.03*(h-1)     speed 1.0
-faixa B (11–20):        hp 1.54 + 0.09*(h-11)    dmg 1.30 + 0.04*(h-11)   speed 1.0 + 0.006*(h-11)
-faixa C (21–30):        hp 2.35 + 0.13*(h-21)    dmg 1.66 + 0.05*(h-21)   speed 1.06
-faixa D (31–40):        hp 3.45 + 0.18*(h-31)    dmg 2.16 + 0.06*(h-31)   speed 1.06
-faixa E (41+):          hp 5.0 + 0.22*(h-41)     dmg 2.70 + 0.07*(h-41)   speed 1.10 (cap 1.35)
+count(h)    = min(240, round(6 + 2.4*(h-1) + 0.045*(h-1)^2))
+maxAlive(h) = min(80, round(6 + 1.2*(h-1)))
+pulses(h)   = clamp(ceil(count/12), 1, 6)
+hpMul(h)    = 1 + 0.20*(h-1)          (cap 12)      // vida nunca é o problema principal
+dmgMul(h)   = 1 + 0.04*(h-1)          (cap 3.2)
+speedMul(h)= 1 + 0.006*(h-1)          (cap 1.25)
 ```
 
-**Tabela de conferência:**
+**Regra anti-esponja** (spec §6): o aumento de dificuldade vem **70% de quantidade e variedade**,
+30% de vida/dano. Por isso `hpMul` é linear e capado em 12×.
 
-| Horda | hpMul | dmgMul | speedMul | Zumbis na horda | Pulsos | Máx. vivos |
-|---|---|---|---|---|---|---|
-| 1 | 1,00 | 1,00 | 1,00 | 6 | 1 | 6 |
-| 5 | 1,24 | 1,12 | 1,00 | 18 | 2 | 12 |
-| 10 | 1,54 | 1,27 | 1,00 | 32 | 2 | 18 |
-| 15 | 1,90 | 1,46 | 1,02 | 46 | 3 | 24 |
-| 21 | 2,35 | 1,66 | 1,06 | 62 | 3 | 30 |
-| 25 | 2,87 | 1,86 | 1,06 | 76 | 4 | 34 |
-| 31 | 3,45 | 2,16 | 1,06 | 96 | 4 | 40 |
-| 40 | 5,07 | 2,70 | 1,10 | 130 | 5 | 52 |
-| 50 | 6,98 | 3,33 | 1,18 | 168 | 6 | 64 |
-| 70 | 11,4 | 4,73 | 1,26 | 240 | 6 | 80 |
+Tabela de conferência:
 
-**Fórmulas:** `zumbis(h) = round(6 + 2.4*(h-1) + 0.045*(h-1)^2)` (cap 260) ·
-`maxVivos(h) = min(6 + 1.2*(h-1), 90)` · `pulsos(h) = clamp(ceil(zumbis/12), 1, 6)`.
-Tudo clampado; **nunca** deixar estourar para `Infinity`.
+| Horda | Zumbis | Máx. vivos | Vida × | Dano × | Tipos disponíveis |
+|---|---|---|---|---|---|
+| 1 | 6 | 6 | 1,0 | 1,0 | comum |
+| 5 | 18 | 11 | 1,8 | 1,2 | comum |
+| 10 | 33 | 17 | 2,8 | 1,4 | comum |
+| 11 | 36 | 18 | 3,0 | 1,4 | + frenético |
+| 15 | 49 | 23 | 3,8 | 1,6 | + tanque |
+| 20 | 68 | 29 | 4,8 | 1,8 | + explosivo, cuspidor |
+| 21 | 72 | 30 | 5,0 | 1,8 | + rastejante |
+| 30 | 110 | 41 | 6,8 | 2,2 | todos |
+| 40 | 152 | 53 | 8,8 | 2,6 | todos |
+| 50 | 198 | 80 | 10,8 | 3,0 | todos |
 
-**Mistura de tipos** (peso; tipos não liberados = 0):
-Caminhante 45 · Frenético 18 · Rastejante 12 · Tanque 8 · Cuspidor 8 · Explosivo 6 · Espreitador 3.
-Depois da horda 31, os especiais ganham +50% de peso (mais variedade, como pede o briefing).
+**Duração alvo da horda:** 45–70 s no começo, 90–150 s depois da 30. Trégua: **6 s**. Preparação inicial:
+2,5 s.
 
-**Tempo-alvo por horda:** ~55 s (1–10), ~70 s (11–20), ~85 s (21–30), ~100 s (31–40), ~120 s (40+).
-Isso fecha **~22 min na horda 30** e ~30 min na 40. Se o teste real estourar 20% disso, ajusta aqui.
+**Mistura de tipos** (peso): comum 45 · frenético 18 · rastejante 12 · tanque 8 · cuspidor 8 · explosivo 9.
+Depois da horda 30, especiais ganham +40% de peso.
 
 ---
 
-## 5. Barricadas
+## 5. Custos progressivos (spec §9 e §10 — nunca fixos)
 
-| Item | Valor |
-|---|---|
-| Vagas no mapa | 7 |
-| Custo (por barricada **viva**) | 50, 80, 90, 100, 110, 120, 130 |
-| Vida | 600 |
-| Dano de zumbi | 30/s (2 zumbis derrubam em ~10 s) |
-| Reparo (`E`) | metade do preço atual, +40% de HP máx (cap 600) |
-| Passagem por tipo | frenético/rastejante: 3× mais rápido (180 u/s de dano efetivo) |
-| Ao quebrar | libera o caminho, deixa destroços 10 s |
+**Barricada** (por número já construído):
+`50 · 80 · 90 · 100 · 110 · 120` — depois `120 + 20*(n-6)`.
+Vida 600. Zumbi causa **30 dano/s**. Reparo custa **metade** do preço atual e devolve 40% da vida.
+Frenético e rastejante atravessam 3× mais rápido.
 
-Fórmula editável: `cost(n) = Math.round(50 * Math.pow(1.16, n-1))` com piso de 50 — os 7 valores acima são
-o resultado arredondado para 10.
+**Torreta** (por número já construído): `400 · 550 · 700 · 850`, depois `850 + 180*(n-4)`.
+Vida 400 · alcance **340 px** · dano 12 · cadência 5/s · munição 240 tiros · recarga **150 moedas**.
+Prioriza o zumbi mais próximo **com linha de visão**. Zumbi causa 18 dano/s nela.
 
----
-
-## 6. Torretas
-
-| Item | Valor |
-|---|---|
-| Vagas no mapa | 4 |
-| Custo | 400, 550, 700, 850 |
-| Vida | 400 |
-| Alcance | 340 px (não atira através de parede) |
-| Dano | 12/tiro a 5 tiros/s = **60/s** (com multiplicador de horda no dano? **não** — dano fixo) |
-| Munição | 240 tiros; recarga por **150 moedas** (`E`) |
-| Prioridade | zumbi mais próximo com linha de visão |
-| Destruída por | 18 dano/s de zumbis que a alcançam |
-
-**Por que dano fixo:** torreta é *atraso*, não solução. Se ela escalasse, o jogador pararia de atirar.
+**Por que dano fixo na torreta:** torreta é atraso, não solução. Se escalasse com a horda, o jogador
+pararia de atirar — e o jogo morre.
 
 ---
 
-## 7. Perks (XP dentro da partida)
+## 6. Loot e cura
 
-Barra de XP: `xpNext(nivel) = 25 + 10*nivel` abates. Ao subir: 1 carta, escolhida com **1/2/3** em 6 s
-(sem pausar). Máx **3 perks ativos**; cada perk tem 4 níveis.
+| Item | Chance | Efeito |
+|---|---|---|
+| Kit médico | 2% por abate | +25 vida |
+| Pacote de munição | 1,5% | +50% do pente na arma atual |
+| Moeda extra | 5% | +10 moedas |
 
-| Perk | Efeito por nível |
-|---|---|
-| **Fôlego** | +6% velocidade de movimento |
-| **Mãos Rápidas** | −10% tempo de recarga |
-| **Casca** | +12 vida máx (cura igual) |
-| **Bolsos** | +40% munição de reserva |
-| **Pulso Firme** | −25% dispersão |
-| **Balas Perfurantes** | +1 perfuração |
-| **Tônico** | +8 HP/s de regeneração |
-| **Sorte** | +10% moedas por abate (não almas) |
-
-Regra: nunca oferecer perk no máximo; se todos estiverem no máximo, oferece **+50 moedas**.
+Tudo expira em 20 s (pisca nos últimos 4 s).
 
 ---
 
-## 8. Almas (meta-moeda)
+## 7. Progressão meta (lobby — almas)
 
-Ganho: `1 alma a cada 25 abates` + `3 por horda limpa sem dano` + `15 ao alcançar horda 10/20/30/40`.
-Bônus de fim de run: `+1 alma por horda alcançada`.
-Exemplo: morrer na horda 14 com 320 abates ≈ 12 + 6 + 15 + 14 = **47 almas**.
-
-### Loja permanente
-
-| Melhoria | Base | + por nível | Máx | Efeito |
+| Melhoria | Base | Crescimento | Máx | Efeito por nível |
 |---|---|---|---|---|
-| **Arma de Estimação** | 30 | ×1,8 | 3 | começa com arma 2 / 3 / 4 em vez da pistola (você escolhe na hora) |
-| **Vitalidade** | 20 | ×1,7 | 5 | +10 vida máx por nível |
-| **Marcenaria** | 25 | ×1,7 | 5 | +120 HP de barricada por nível |
-| **Engenharia** | 30 | ×1,8 | 4 | −15% custo de torreta por nível |
-| **Saquinho** | 15 | ×1,6 | 5 | +50 moedas iniciais por nível |
-| **Faro** | 20 | ×1,7 | 5 | +8% moedas por abate por nível |
+| Arma de estimação | 30 | ×1,8 | 3 | começa com Calibre 12 / Vetor / Zumbido |
+| Vitalidade | 20 | ×1,7 | 5 | +10 vida máxima |
+| Marcenaria | 25 | ×1,7 | 5 | +120 HP de barricada |
+| Engenharia | 30 | ×1,8 | 4 | −15% custo de torreta |
+| Saquinho | 15 | ×1,6 | 5 | +50 moedas iniciais |
+| Faro | 20 | ×1,7 | 5 | +8% moedas por abate |
 
-Custos: `custo(nivel) = round(base * (razão ^ nivel))` para nível 0,1,2…; teto no máximo indicado.
-Nada é perdido ao morrer; a loja só cresce.
-
----
-
-## 9. Recordes
-
-`pontuação = horda*2000 + abates*15 + moedasGastas/10 + tempoSeg` (só informativo/ranking local).
-Recordes salvos: horda máxima, tempo máximo, abates, moedas acumuladas. Top 10 em
-`hordas_save_v1.scores`.
+Ganho de almas: `1 a cada 25 abates` + `3 por horda limpa sem dano` + `15 ao alcançar horda 10/20/30/40`
++ `1 por horda alcançada` no fim da partida.
 
 ---
 
-## 10. Sanidade do balanceamento (rodar em teste)
+## 8. Sanidade (rodar a cada marco)
 
 | Cenário | Esperado |
 |---|---|
-| Horda 1, jogador parado atirando | sobrevive com ~70 HP |
-| Horda 1–10 jogando médio | chega à 11 com **800–1.200 moedas** e 1 arma comprada |
-| Horda 15 com 1 arma comprada + 2 barricadas | aperto, mas passa |
-| Horda 21 primeiro tanque | precisa de 2 pentes da arma 3 (ou 1 do lançador) |
-| Horda 31 primeiro cuspidor | jogador tem que sair do cantinho |
-| Horda 40 | 1 torreta + 3 barricadas já não bastam; caos controlado |
-| Run casual | 12–20 min |
-| Run boa | 25–35 min |
-| 150 zumbis na tela | ≥ 58 FPS e vivo (não morre por dano empilhado) |
+| Hordas 1–10 jogando normal | chega à 11 com **800–1.200 moedas** e 1 arma comprada |
+| Horda 15 com 1 arma + 2 barricadas | aperto, mas passa |
+| Horda 20 | primeiro cuspidor obriga a sair do canto |
+| Horda 30 | 1 torreta + 3 barricadas já não bastam |
+| Zumbi em canto fechado | nunca fica preso mais de 2 s (ataque a estrutura ou desvio) |
+| 150 zumbis | ≥ 58 FPS |
+| Partida casual | 15–25 min até morrer |

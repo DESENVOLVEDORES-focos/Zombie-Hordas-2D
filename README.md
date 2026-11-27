@@ -1,39 +1,45 @@
-# HORDAS — pacote de desenvolvimento
+# HORDAS — pacote de comando
 
-Jogo **original** de sobrevivência 2D **top-down 90°** contra hordas de zumbis: economia de moedas dentro
-da partida, **barricadas** e **torretas** construídas no mapa, **7 armas** com pente e recarga, hordas por
-**abate total** que escalam devagar por 40+ ondas, e **almas** que compram melhorias permanentes no lobby.
-Runs de **20–30 minutos**.
+Jogo 2D **top-down 90°** de sobrevivência contra hordas de zumbis: moedas por abate, **armas compráveis**
+no mapa, **barricadas** e **torretas** construídas em vagas, 6 tipos de zumbi e dificuldade que sobe
+devagar por 40+ hordas. HTML5 + Canvas 2D puro, zero dependências, arte e áudio **100% procedurais**.
 
-**HTML5 + Canvas 2D puro.** Zero dependências. Zero assets: arte e áudio são 100% procedurais, gerados por
-código. Abre com **duplo-clique no `index.html`**.
-
-> Este repositório contém o **pacote de instruções** para uma IA (Arena, modo agent) construir o jogo —
-> ainda não contém o jogo. O prompt para colar está em `docs/03-PROMPT-PRONTO.md`.
+> **Este repositório é o pacote de comando, não o jogo.** O dono do projeto comanda; um agente de IA
+> executa no chat. Aqui estão a especificação, as decisões travadas, a arquitetura, os números e o
+> prompt que você cola.
 
 ---
 
-## Como começar (3 passos)
+## Papéis
 
-1. Abra um **novo chat no Arena em modo agent**, de preferência **a partir deste repositório** (assim a IA
-   lê o `docs/` sozinha).
-2. Copie o bloco da **seção 4.1 de [`docs/03-PROMPT-PRONTO.md`](docs/03-PROMPT-PRONTO.md)** e cole.
-3. A cada resposta, mande **um** marco: `Siga para o MARCO 2.` → `Siga para o MARCO 3.`
+| Quem | Faz o quê |
+|---|---|
+| **Você (comandante)** | define o que quer, aprova, cobra. Não coda. |
+| **Agente (executor)** | implementa marco por marco, testa e relata. Não decide escopo. |
+| **Este pacote** | o contrato entre os dois: evita retrabalho, decisão repetida e "IA inventou". |
 
-Não mande dois marcos na mesma mensagem: a IA costuma simplificar o segundo.
+---
+
+## Como usar (3 passos)
+
+1. Abra um chat novo no **Arena em modo agent**, de preferência **a partir deste repositório**.
+2. Cole o bloco da **seção 4.1 de [`docs/03-PROMPT-EXECUCAO.md`](docs/03-PROMPT-EXECUCAO.md)**.
+3. A cada entrega, mande **um** marco: `Siga para o MARCO 2.` → `MARCO 3` → `MARCO 4` → `MARCO 5`.
+
+Nunca mande dois marcos numa mensagem: o segundo sai simplificado.
 
 ---
 
 ## Documentos
 
-| Arquivo | Para que serve |
+| Arquivo | Papel |
 |---|---|
-| [`docs/00-RESUMO-E-ESCOPO.md`](docs/00-RESUMO-E-ESCOPO.md) | Escopo fechado, decisões travadas, prioridade (mapas primeiro), 3 marcos, regras de ouro, **guarda-corpo de originalidade** |
-| [`docs/01-GDD.md`](docs/01-GDD.md) | Design: tom cartoon splatter, câmera, controles, hordas, economia, barricadas, torretas, armas, perks, **croqui do mapa Telhados**, paleta, áudio, telas |
-| [`docs/02-ESPECIFICACAO-TECNICA.md`](docs/02-ESPECIFICACAO-TECNICA.md) | Implementação: arquitetura, **formato de mapa em dados**, colisão, IA, grid, render, save, performance, casos de borda, **checklists de aceite por marco** |
-| [`docs/03-PROMPT-PRONTO.md`](docs/03-PROMPT-PRONTO.md) | **O prompt que você cola** + mensagens de socorro (performance, visual, dificuldade, mapa novo) |
-| [`docs/04-BALANCEAMENTO.md`](docs/04-BALANCEAMENTO.md) | A planilha única: jogador, 7 armas, 7 zumbis, curva por 5 faixas, barricada, torreta, perks, almas, loja, recordes |
-| [`docs/05-IDEIAS.md`](docs/05-IDEIAS.md) | Backlog com esforço × impacto: mapas 2–6, defesas extras, chefes, coop, hub, roadmap de 6 sessões |
+| [`docs/01-ESPECIFICACAO-ORIGINAL.md`](docs/01-ESPECIFICACAO-ORIGINAL.md) | **A base**: sua especificação completa, reproduzida. Não editar. |
+| [`docs/00-ORDEM-DE-COMANDO.md`](docs/00-ORDEM-DE-COMANDO.md) | **Manda**: escopo travado, decisões, estrutura de 25 arquivos, 5 marcos com critério de aceite, regras anti-desperdício |
+| [`docs/02-ARQUITETURA.md`](docs/02-ARQUITETURA.md) | Como implementar: namespaces, loop, **flow field** (zumbi não trava), colisão, render, áudio, configs, teste automatizado |
+| [`docs/03-PROMPT-EXECUCAO.md`](docs/03-PROMPT-EXECUCAO.md) | **O prompt para colar** + mensagens de correção (IA travando zumbi, performance, botão morto, balanceamento) |
+| [`docs/04-BALANCEAMENTO.md`](docs/04-BALANCEAMENTO.md) | Os números: 6 armas, 6 zumbis, curva de hordas, custos progressivos, almas |
+| [`docs/05-MAPAS-E-BACKLOG.md`](docs/05-MAPAS-E-BACKLOG.md) | Como criar mapa novo em 30 min (o "expansível" da spec) + o que fica para depois |
 
 ---
 
@@ -41,39 +47,41 @@ Não mande dois marcos na mesma mensagem: a IA costuma simplificar o segundo.
 
 | Tema | Decisão |
 |---|---|
-| Plataforma | HTML5 + JS + **Canvas 2D puro**; roda em `file://` |
-| Dependências / assets | **Zero** — arte e áudio 100% procedurais |
-| Câmera | Topdown 90° ortográfico, sem rotação, com amortecimento |
-| Tom | **Cartoon splatter** (saturado, contorno 2px, sangue divertido) |
-| Mira | Auto-aim + **foco manual** no botão direito |
-| Hordas | **Abate total** (acaba quando morre o último), 6 s de trégua entre elas |
-| Dificuldade | 5 faixas: 1–10 base · 11–20 quantidade · 21–30 resistência · 31–40 especiais · 40+ caos |
-| Economia | **Moeda** (na partida) + **Alma** (meta, no lobby) |
-| Defesas | 7 vagas de barricada (600 HP, custo 50→130) e 4 de torreta (340 px, 400 HP) |
-| Mapas | **Telhados** jogável; Metrô, Hospital, Escola, Instalações, Zona Urbana com cadeado |
-| Multiplayer | Não agora — mas `players[]`, dano por `playerId` e estado serializável desde o dia 1 |
-| Fora de escopo | Rede/login/backend, mapas 2+, hub andável, editor visual, mobile touch-first |
+| Plataforma | HTML5 + JS + **Canvas 2D puro**, roda com duplo-clique no `index.html` |
+| Dependências / assets | **Zero** — arte e áudio sintetizados em código |
+| Modularidade | **um arquivo por sistema** (~25 arquivos), scripts clássicos, números só em `js/config.js` |
+| Câmera | topdown 90° ortográfico, sem rotação, segue o jogador |
+| Navegação | **flow field** em grade de 50 px — nenhum zumbi preso, nenhum zumbi em parede |
+| Hordas | por **abate total**, contador `RESTAM N`, trégua 6 s |
+| Curva | 70% quantidade/variedade + 30% vida/dano, **sem esponja de balas** |
+| Economia | moedas na partida (abate) + almas no lobby (meta) |
+| Defesas | barricadas em vagas (custo 50→120, 600 HP) e torretas (400→850, 340 px) |
+| Mapas | **4 jogáveis**: Telhados, Metrô, Hospital, Escola |
+| Multiplayer | **não agora** (botão existe e explica); arquitetura pronta (`players[]`) |
+| Fora de escopo | rede/backend/login, assets externos, mobile touch-first, cópia de franquia |
 
 ---
 
-## Os 3 marcos
+## Os 5 marcos
 
-| Marco | Entrega | Pronto quando |
+| Marco | Entrega | Aceite |
 |---|---|---|
-| **1. Base + Mapas** | estrutura, câmera, movimentação, colisão, **sistema de mapas em dados**, Telhados completo, lobby com seleção | ando o mapa inteiro sem atravessar parede e criar mapa novo mexe só no `maps.js` |
-| **2. O jogo** | hordas por abate total, 7 zumbis, moedas, compras na parede, barricadas, torretas, 7 armas, perks, game over | uma run chega à horda 15 com barricada quebrando e torreta atirando |
-| **3. Lobby + meta + polimento** | almas, loja permanente, recordes, config, áudio, juice, performance, `docs/MAPAS.md` | checklist do doc 02 seção 12 100% e mapa novo em <1h |
+| **1** | base jogável + Telhados | anda 30 s sem atravessar parede, 10 abates, console limpo |
+| **2** | hordas + 6 zumbis + pathfinding | nenhum zumbi preso ou em parede; 15 hordas sem erro |
+| **3** | economia + barricadas + torretas + 6 armas | compra negada sem dinheiro; barricada quebra; torreta respeita alcance |
+| **4** | lobby, telas, áudio, configs | nenhum botão morto; config tem efeito real; save persiste |
+| **5** | Metrô, Hospital, Escola | 4 mapas jogáveis; 5º mapa em < 30 min |
 
 ---
 
-## O que esperar de uma run
+## O que esperar da partida
 
 | Hordas | Sensação |
 |---|---|
-| 1–10 | "fácil, tô juntando moeda" |
-| 11–20 | "tá vindo mais... preciso comprar algo" |
-| 21–30 | "esse tanque não morre" |
-| 31–40 | "o que É isso?" (especiais entram) |
-| 40+ | colapso — a morte vira recorde |
+| 1–10 | "fácil, tô juntando moeda e comprando a primeira arma" |
+| 11–20 | frenético entra: "tá vindo mais e mais rápido" |
+| 15–20 | tanque, explosivo e cuspidor: você precisa sair do canto |
+| 21–30 | rastejante passa pela barricada; a defesa vira gestão |
+| 30+ | 2 torretas e 3 barricadas já não bastam |
 
-Casual: 12–20 min. Boa: 25–35 min.
+Partida casual: 15–25 min.
