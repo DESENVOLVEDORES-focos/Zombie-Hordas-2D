@@ -1,153 +1,134 @@
 # BANCO DE IDEIAS (backlog)
 
-> Documento 6 de 6. Nada aqui entra no jogo agora. Cada bloco é uma ideia pronta pra você mandar
-> depois, com **esforço** (E1 = 1 sessão, E2 = 2–3, E3 = grande) e **impacto** no "será que eu jogo
-> outra vez". Regra: só pedir **uma família de ideias por vez**.
+> Documento 6 de 6. **Nada aqui entra no jogo agora.** É a fila do que pedir depois, com esforço
+> (E1 = 1 sessão, E2 = 2–3, E3 = grande) e impacto. Regra: **uma família por vez**.
 
 ---
 
-## A. Armas / estilos de build (impacto ALTO, esforço E1–E2)
+## 0. Antes de qualquer ideia nova
 
-Hoje existe 1 arma que muda de stat. Isso é o teto mais baixo do design — é o que mais rende melhorar.
+Ordem de prioridade absoluta: **terminar os 3 marcos do doc 00**. Um jogo com 1 mapa polido vale mais que
+5 mapas pela metade. Só abra este documento quando o checklist do doc 02 seção 12 estiver 100%.
 
-| Ideia | Mecânica | E | Impacto |
+---
+
+## A. Mapas 2 a 6 (E2 cada) — a prioridade natural
+
+O engine já nasce pronto para isso (`maps.js`). Cada mapa precisa de: paleta própria, 2–3 obstáculos
+característicos, 7–8 vagas de barricada, 4–5 de torreta, 5–6 placas, 7–9 spawns, 1–2 zonas de risco.
+
+| Mapa | Identidade | Gancho de gameplay | Paleta |
 |---|---|---|---|
-| **Escolha de arma inicial** | Na tela de título: Pistola (equilibrada) / Escopeta (curto alcance, 5 pellets) / Rifle de precisão (perfura 3, cadência baixa) / Metralhadora (cadência alta, dano baixo, spread) | E1 | ⭐⭐⭐⭐⭐ |
-| **Armas como drop raro** | Caixa a cada 8 ondas: troca a arma da run (one-way, você escolhe) | E2 | ⭐⭐⭐⭐ |
-| **Mods de projétil** | Ímpar: ricochete / perfuração infinita com −50% dano / bala que explode / bala que gruda e queima | E2 | ⭐⭐⭐⭐ |
-| **Build de corpo a corpo** | Machado girando ao redor (órbita), cadência em área, você precisa colar na horda | E2 | ⭐⭐⭐⭐ |
+| **Metrô** | estação subterrânea, vagão parado, catracas, plataforma | corredores longos: horda vem em fila, torreta brilha; vagão é sala de morte | verde-fantasma + azulejo |
+| **Hospital** | corredores, recepção, macas, luz de emergência | portas que fecham e abrem, sala sem saída; cuspidor domina | branco-azulado + vermelho |
+| **Escola** | salas de aula, quadra, corredores, armários | quadra aberta (caos) vs. corredores (funil) | vinho + madeira |
+| **Instalações** | galpão industrial, esteiras, tanques, passarelas | barricadas valem dobro, espaço apertado | ferrugem + amarelo |
+| **Zona Urbana** | rua, ônibus, carros, becos, tapumes | mapa maior, más rotas, deslocamento é o desafio | asfalto + neon |
+| Telhados **Noite** | variação do mapa 1 com chuva | visa reduzir campo, som de chuva, poças | azul-escuro |
 
-**Sugestão minha:** comece por *Escolha de arma inicial*. Custa pouco e dobra a rejogabilidade.
+**Sugestão:** Metrô primeiro — é o que mais muda a leitura de tela em relação a Telhados.
 
 ---
 
-## B. Zumbis adicionais (impacto ALTO, esforço E1 cada)
+## B. Estruturas defensivas extras (E1–E2)
 
-| Nome | Silhueta | Comportamento que muda o jogo |
+| Ideia | Efeito | Custo sugerido |
 |---|---|---|
-| **Saltador** | pernas dobradas, corpo baixo, se agacha antes de pular | pula 180px em arco, atravessa a linha de tiro |
-| **Blindado** | placas de metal no peito (cinza), capacete | −60% dano de projétil na frente; tem que acertar pelas costas |
-| **Aracnídeo** | 8 patas finas, corpo baixo | corre em zigue-zague rápido, difícil de acertar |
-| **Necromante** | capuz, cajado, brilho roxo nas mãos | ressuscita zumbis mortos em raio 200 (prioridade máxima de alvo) |
-| **Escavador** | só a cabeça pra fora do chão, poeira | anda **embaixo do chão** e emerge embaixo do jogador (telegraph 1s) |
-| **Colosso (boss 2)** | 2× o brutamontes, correntes no braço | arremessa carros / escombros em linha reta |
-| **Enxame** | nuvem de moscas/carne | 12 mini-zumbis com 3 HP, colisão de área |
-| **Gêmeos (boss 3)** | um zumbi dividido em 2 metades ligadas por carne | divide em 2 ao morrer; cada metade tem que morrer junta |
-| **Chuva ácida** | evento, não inimigo | poças verdes no chão durante 3s, obrigam a reposicionar |
+| **Arame farpado** | dano 8/s a quem passa, 200 HP, não bloqueia | 120 |
+| **Barricada reforçada** | 1.200 HP, ocupa 2 vagas | 220 |
+| **Armadilha de espinhos** | dano em área ao ser pisada, 1 uso | 90 |
+| **Holofote** | ilumina zona e +10% dano do jogador ali | 300 |
+| **Portão elétrico** | dano 25/s em corredor, 20 s de carga | 500 |
+| **Sino de aviso** | toca quando zumbi passa (aviso de flanco) | 100 |
 
-**Sugestão minha:** *Necromante* e *Escavador* são os que mais mudam a leitura de tela. Blindado é o
-mais fácil de implementar com grande efeito.
+**Cuidado:** cada estrutura nova precisa de vaga no mapa. Prefira **transformar** vaga existente
+(`barricadeSlots` com `allowed:['wood','wire']`) em vez de espalhar vagas.
 
 ---
 
-## C. Habilidades extras (impacto MÉDIO-ALTO, esforço E1–E2)
+## C. Zumbis e chefes (E1 cada / E3 o chefe)
 
-| Habilidade | Efeito | Tecla |
+| Nome | Comportamento que muda o jogo |
+|---|---|
+| **Blindado** | −70% dano de frente; tem que flanquear ou usar perfuração |
+| **Necromante** | ressuscita zumbis mortos em raio 200; prioridade de alvo máxima |
+| **Escavador** | anda sob o chão e emerge sob o jogador (telegraph de 1 s) |
+| **Gritador** | buffa +25% velocidade de quem está perto (suporte) |
+| **Chefe "Aberraça"** (horda 50) | 3 cabeças, 3 ataques (pisotear, investida, invocar), barra de vida no topo |
+| **Chefe "Coro"** (horda 80) | 4 gritadores fundidos; precisa destruir 4 pontos fracos |
+| **Chefe final "Maré"** (horda 100) | ocupa metade do mapa, obriga barricadas em massa |
+
+Chefes **não** são necessários para o gênero, mas resolvem o "a horda 60 já não tem novidade".
+
+---
+
+## D. Armas e progressão (E1–E2)
+
+- **Caixa Cega** (E2): pagar 950 por uma arma aleatória das 7. Uma por mapa. Puro vício.
+- **Arma de parede "coringa"** (E1): placa que troca de arma a cada horda.
+- **Melhorias de arma nível 2** (E1): após comprar as três melhorias, liberar "Pacote" (+perfuração ou
+  balas explosivas).
+- **Arma corpo a corpo** (E2): facão com golpe em arco, sem munição, bom pra emergência.
+- **Foguete teleguiado** (E2): arma 8, mira sozinha, 1 por horda.
+
+---
+
+## E. Modos e sistemas (E2–E3)
+
+| Modo | Descrição | E |
 |---|---|---|
-| **Torreta** | planta uma torreta por 15s que atira sozinha | 1 |
-| **Campo de Gelo** | congela zumbis em raio 140 por 2s | 2 |
-| **Chamado do Trovão** | 5 raios caem nos 5 zumbis mais próximos (dano alto) | 3 |
-| **Míssil teleguiado** | 3 mísseis que explodem (dano em área) | 4 |
-| **Bomba de fumaça** | zumbis perdem o alvo por 3s (você fica "invisível") | 5 |
-| **Lança-chamas** | cone de 220px por 3s, dano contínuo + queimadura | 6 |
-| **Ressurreição** | revive 1× com 50% de vida (passiva, não habilidade) | — |
-| **Berserk** | −30% dano recebido e +20% dano por 5s | — |
-| **Tempo bala** | 2s em câmera lenta (jogador normal, zumbis 35%) | Q |
-
-**Regra de ouro:** no máximo **4 habilidades ativas** no HUD. Mais que isso ninguém usa. Adicionar
-novas significa **substituir** as atuais, não empilhar.
+| **Coop local** | 2 jogadores no mesmo teclado (WASD + setas), moeda compartilhada, 2 downs | E2 |
+| **Multiplayer online** | host autoritativo + WebRTC/socket; estado já serializável | E3 |
+| **Horda infinita** | sem fim, dificuldade capada, foco em score | E1 |
+| **Modo caos** | hordas já começam na 25, sem trégua longa | E1 |
+| **Desafio diário** | seed fixa, 1 tentativa, ranking local | E2 |
+| **Modo construtor** | moedas infinitas, só testar defesas (ótimo pra debug) | E1 |
 
 ---
 
-## D. Modos de jogo (impacto ALTO, esforço E2–E3)
+## F. Meta-progressão e apresentação (E1–E2)
 
-| Modo | Descrição |
+- **Hub andável** (E2): bunker topdown onde você anda até a armaria, a bancada de barricada e o quadro
+  de mapas. Substitui o menu, não o jogo.
+- **Bestiário** (E1): contador de abates por tipo, desenho do zumbi, dica de combate.
+- **Medalhas** (E1): "horda 20 sem barricada", "100 abates com lançador" etc. → almas.
+- **Resumo pós-run com gráfico** (E1): linha de vida ao longo do tempo, desenhada no canvas.
+- **Modo streamer** (E1): sem som, HUD limpo, sem nomes de arquivo.
+- **Gamepad** (E2): Gamepad API — analógico move, gatilho atira.
+- **Acessibilidade** (E1): reduzir flash, alto contraste, escala de HUD 125%, remover shake.
+
+---
+
+## G. Não recomendo agora
+
+| Ideia tentadora | Por quê não |
 |---|---|
-| **Campanha curta** | 15 ondas com mapa fixo, 3 chefes na ordem, vitória real |
-| **Arena com obstáculos** | carros, muros, cercas: cobertura importa, mude a IA de path |
-| **Modo quieto** | 1 vida, sem cura, ponto; puro score |
-| **Coop local** | 2 jogadores, mesmo teclado (WASD + setas) — cabe em 1 arquivo, é só duplicar o jogador |
-| **Desafio diário** | mesma seed pra todos, 1 tentativa por dia, ranking |
-| **Modo "sem melhorias"** | skills fixas, teste de puro skill (útil pra streamers) |
-
-**Sugestão minha:** *Coop local* é a ideia com melhor relação diversão/esforço de todo este documento.
+| Login + ranking em nuvem | quebra o duplo-clique e adiciona latência por 1 feature; faça local |
+| Mobile touch | muda controle e balanceamento inteiros; precisa de joystick virtual dedicado |
+| Sprites gerados por IA | quebra a regra "zero assets" e a consistência visual |
+| 3D / isométrico | é outro jogo; o topdown 90° é a identidade |
+| Copiar perks/mapas de referência | risco legal e mata a originalidade (doc 00 seção 8) |
+| Editor visual de mapa | o `maps.js` já é o editor; só vale com 10+ mapas |
 
 ---
 
-## E. Eventos e ritmo (impacto MÉDIO, esforço E1)
-
-- **Noite caindo**: a cada 5 ondas, a luz escurece e você tem um círculo de visão ao redor → tensão nova.
-- **Cerco**: onda em que todos os zumbis vêm de **um lado só** (seta no HUD).
-- **Horda dourada**: 30s com 3× almas, mas 1,5× dano.
-- **Apagão**: zumbis invisíveis fora do seu raio de luz por 6s.
-- **Cura global**: a cada 10 ondas, um kit médico garantido no centro da arena (obriga a mover).
-- **"Última bala"**: quando a vida está baixa, o próximo tiro é crítico garantido (feedback dramático).
-
----
-
-## F. Meta e progressão (impacto ALTO no retorno, esforço E2)
-
-- **Árvore de talentos** fora da loja: nós conectados (dano → perfuração → explosão), 3 ramos.
-- **Desafios semanais**: "mate 3 brutamontes com granada" → recompensa em almas.
-- **Personagens desbloqueáveis**: 3 sobreviventes com passivas diferentes (o detetive tem +crítico,
-  a médica tem regen, o mecânico tem drones iniciais). Custo em almas.
-- **Códices**: bestiário com contador de kills por tipo; preenche conforme joga. Custa pouco e dá
-  sensação de progresso.
-- **Fantasma/ranking local**: top 10 na tela de título com sua inicial.
-
----
-
-## G. Apresentação (impacto ALTO, esforço E1)
-
-- **Tela de título animada**: hordas de silhuetas cruzando o fundo, névoa, luz piscando.
-- **Transições**: fade preto de 0,3s entre estados.
-- **Hitstop** de 2 frames nos críticos (hoje só no boss).
-- **Câmera com "peso"**: micro-lag de 0,08s no follow — parece cinema.
-- **Anúncio de onda** com letras grandes entrando de baixo (tipo filme de terror).
-- **Modo streamer**: HUD sem sons, sem nomes de arquivo, mudo automático.
-- **Suporte a gamepad** (Gamepad API): analógico move, gatilho atira. Custo baixo, agrada muito.
-
----
-
-## H. Qualidade de vida (impacto MÉDIO, esforço E1)
-
-- **Build resumida** na tela de pausa (lista dos upgrades pegos).
-- **Botão "continuar"** no save de run em andamento.
-- **Acessibilidade**: opção de reduzir flash, aumentar contraste, remover screen shake, escala de UI 125%.
-- **Resumo pós-run**: gráfico de vida ao longo do tempo (uma linha desenhada no canvas).
-- **Tecla F3**: overlay de debug (FPS, entidades, grid) — já sugerido no doc técnico.
-
----
-
-## I. Coisas que parecem boas mas eu NÃO recomendo ainda
-
-| Ideia tentadora | Por quê não agora |
-|---|---|
-| Login + Supabase com ranking global | Quebra o "duplo-clique", adiciona backend e latência de rede por 1 feature. Faça local primeiro. |
-| Mobile touch | Muda todo o controle e o balanceamento (dedo cobre tela). Precisa de joystick virtual dedicado. |
-| Multiplayer online | Sincronização de horda é um projeto inteiro, não uma feature. |
-| Arte gerada por IA (imagens) | Quebra a regra "zero assets" e o jogo fica irregular entre entidades. |
-| 3D / pseudo-3D | Vira outro projeto. Topdown 90° é o charme. |
-| Música licenciada | Direitos autorais + peso no repo. Áudio procedural resolve. |
-
----
-
-## J. Ordem sugerida de evolução (roadmap de 6 mensagens)
+## H. Roadmap sugerido de 6 sessões
 
 | Sessão | Pedido | Por quê |
 |---|---|---|
-| 1 | A1 — 4 armas iniciais | dobra a rejogabilidade |
-| 2 | B — +3 zumbis (Blindado, Necromante, Saltador) | muda a leitura de tela |
-| 3 | D — Coop local | melhor diversão/esforço |
-| 4 | E — eventos (noite, cerco, horda dourada) | varia o ritmo dentro da run |
-| 5 | F — 3 personagens desbloqueáveis + bestiário | dá motivo pra voltar |
-| 6 | G+H — gamepad, resumo pós-run, acessibilidade | deixa "de produto" |
+| 1 | Mapa **Metrô** + desbloqueio no lobby | valida o sistema de mapas (o teste real do M1) |
+| 2 | **Arame farpado** + **Blindado** | 1 defesa + 1 zumbi que muda a mira |
+| 3 | **Coop local** | melhor diversão por esforço de todo o backlog |
+| 4 | **Caixa Cega** + **Necromante** | vício + ameaça nova |
+| 5 | **Chefe Aberraça** na horda 50 + bestiário | dá um "marco" para a run longa |
+| 6 | **Hub andável** + gamepad + acessibilidade | deixa com cara de produto |
 
 ---
 
-## K. Se quiser vender/publicar depois
+## I. Se for publicar
 
-- **itch.io** aceita HTML5 zipado direto (o projeto já é isso). Taxa opcional.
-- Página de jogo precisa: GIF de 10s com a tela cheia de zumbis, 3 screenshots, e a frase de 1 linha
-  ("Sobreviva à horda. Não existe vitória — existe recorde.").
-- Licença MIT no repo; crédito "arte e áudio 100% procedurais" é um diferencial bom de divulgação.
+- **itch.io** aceita HTML5 zipado direto (o projeto já é isso).
+- Página precisa: GIF de 10 s com a tela cheia de zumbis e uma barricada quebrando, 3 prints, e a frase
+  de uma linha: **"Segure o telhado. Cada horda cobra mais caro que a anterior."**
+- Licença MIT; "arte e áudio 100% procedurais" é um diferencial bom de divulgação.
+- Não use nome, logo ou arte que remeta a franquias existentes — a identidade própria é regra do projeto.

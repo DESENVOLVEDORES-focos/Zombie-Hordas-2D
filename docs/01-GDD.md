@@ -1,197 +1,271 @@
-# GDD — HORDAS 2D (documento de design)
+# GDD — HORDAS (design do jogo)
 
-> Documento 2 de 6. É o "porquê" e o "como se joga". O documento 04 tem os números.
-> Se este documento e o 04 divergirem em número, **o 04 ganha** (ele é a planilha de balanceamento).
-
----
-
-## 1. Fantasia central (o que o jogador deve sentir)
-
-Você é a última pessoa viva numa cidade que virou cemitério. Não existe vitória — existe **quanto tempo
-você aguenta** e **quão absurdo você fica antes de cair**. A curva emocional de uma partida:
-
-| Tempo | Sensação | O que muda |
-|---|---|---|
-| 0–30s | "tranquilo, tô no controle" | 1 tipo de zumbi, ritmo baixo, você lê o mapa |
-| 1–3 min | "tá apertando" | corredores aparecem, você começa a kitar (andar em círculo) |
-| 3–6 min | "poderzinho" | 2º e 3º upgrades travaram o poder; você avança pra *dentro* da horda |
-| 5 min | **pico de tensão** | primeiro BOSS; a tela enche, você usa dash pra sair vivo |
-| 6–12 min | "build" | você escolheu um caminho (dano puro / crítico / tanque / área) e a tela vira caos |
-| 12 min+ | "colapso" | a horda cresce mais rápido que você; a morte é questão de tempo e vira score |
-
-**Regra de ouro:** o jogador nunca deve ficar sem algo pra fazer. Se não tem zumbi perto, tem XP pra
-buscar, alma pra coletar, ou um upgrade esperando.
+> Documento 2 de 6. É o **porquê** e o **como se joga**, em prosa. Números ficam no doc 04.
+> Se este documento e o 04 divergirem em número, **o 04 ganha**.
 
 ---
 
-## 2. Câmera e leitura de tela (topdown 90°)
+## 1. Fantasia central
 
-- **Visão 100% de cima, ortográfica, sem perspectiva, sem rotação.** Norte é sempre norte.
-- Câmera **segue o jogador com suavização** (lerp 8–10/s) e um leve *look-ahead* na direção do mouse
-  (máx. 40px) pra você ver pra onde está mirando.
-- **Arena fechada de 3.200 × 3.200 px** com cerca visível nas bordas (evita fugir da horda e cria
-  "cantos de morte"). O jogador é limitado pela borda; os zumbis também.
-- **Chão procedural**: grade fina escura + manchas de sujeira e sangue geradas com seed fixa, para dar
-  noção de movimento sem asset.
-- **Regra de leitura**: o jogador é o único objeto **azul-ciano com contorno claro**; zumbis são
-  **verdes/terrosos**; projéteis do jogador são **amarelo-brancos**; projéteis inimigos são
-  **verde-ácido**. Nunca usar a cor do jogador em inimigo.
-- UI fica em **camadas fixas** (HUD não treme junto com o screen shake; só o mundo treme).
+Você é um dos últimos de pé numa cidade tomada. Não existe vitória: existe **quanto tempo você aguenta**
+e **quão monstruoso o seu arsenal fica** antes de cair. A curva emocional de uma partida:
+
+| Fase | Hordas | Sensação | O que muda |
+|---|---|---|---|
+| Calmaria | 1–10 | "tô no controle, isso é fácil" | zumbis lentos, poucos, moedas pingando |
+| Aperto | 11–20 | "tá vindo mais... preciso comprar algo" | quantidade sobe, você começa a cercar-se de barricadas |
+| Pressão | 21–30 | "meu deus, esse tanque não morre" | resistência sobe, munição vira problema |
+| Desespero | 31–40 | "o que É isso?" | **especiais** entram: cuspidor, explosivo, frenético em massa |
+| Colapso | 40+ | "não tem mais como" | a horda cresce mais rápido que você; a morte vira recorde |
+
+**Regra de ouro:** o jogador nunca fica sem decisão. Sempre há algo a comprar, algo a reparar ou uma
+rota a escolher — e a moeda nunca é suficiente para tudo.
+
+---
+
+## 2. Câmera e leitura de tela
+
+- **2D topdown 90° puro**: câmera acima, sem rotação, sem perspectiva, sem inclinação. Norte é sempre norte.
+- A câmera segue o jogador com **amortecimento** (lerp ~9/s) e um **look-ahead** de até 40px na direção
+  do retículo — você vê para onde está mirando.
+- **Zoom fixo** (1,0): a leitura de tela é o coração do gênero. Nada de zoom dinâmico.
+- Mapas são **fechados** (paredes/parapeito). Sem borda aberta: o mapa inteiro é a arena.
+- **Oclusão suave**: quando uma parede alta fica entre o jogador e a câmera, ela recebe alpha 0,55
+  (evita o jogador "sumir" atrás de um pilar).
+- **Regra de cores**: o jogador é o **único** objeto em azul-ciano; zumbis são verdes/terrosos; moeda é
+  dourada; alma é violeta; munição é branca; compra é verde; perigo é vermelho. Nenhuma exceção.
+- UI em camada fixa (o HUD **não** treme com o screen shake; só o mundo treme).
 
 ---
 
 ## 3. Controles
 
-| Ação | Teclado/Mouse | Alternativa |
-|---|---|---|
-| Mover | WASD / setas | — |
-| Mirar | Mouse | automático no alvo mais próximo se mouse parado |
-| Atirar | **Automático** (sempre) | clique esquerdo segurado = "foco" (reduz spread, +10% dano) |
-| Habilidade 1 — Dash | Espaço ou Shift | — |
-| Habilidade 2 — Onda de choque | Q | — |
-| Habilidade 3 — Granada incendiária | E | — |
-| Habilidade 4 — Fúria | R | — |
-| Escolher melhoria | clique / 1-2-3 / ←→ + Enter | — |
-| Pausa | Esc ou P | volta ao jogo |
-| Reiniciar (game over) | R ou clique | — |
-| Tela cheia | F | — |
+| Ação | Comando |
+|---|---|
+| Mover | **WASD** / **setas** |
+| Mirar | **mouse** (retículo sempre visível) |
+| Atirar | **botão esquerdo** (segurar) — ou **auto-fire** ligado na config |
+| Foco manual | **botão direito** (segurar): +15% dano, −50% dispersão, −20% velocidade |
+| Recarregar | **R** (ou automático quando o pente zera) |
+| Trocar arma (2 slots) | **Q** ou roda do mouse |
+| Construir barricada | **B** (na vaga mais próxima, dentro de 90px) |
+| Construir torreta | **T** (na vaga mais próxima) |
+| Comprar na parede | **E** (quando o aviso aparecer perto do ponto) |
+| Interagir / confirmar | **E** |
+| Pausa | **Esc** / **P** |
+| Tela cheia | **F** |
+| Debug (FPS, hitbox) | **F3** |
 
-**Decisão de design:** o tiro é **automático** porque o jogo é de posicionamento (kitar), não de mira.
-Isso deixa o jogador livre pra pensar em *onde estar* — que é o que mata ele.
-
----
-
-## 4. Sistemas
-
-### 4.1 Arma principal (auto-aim)
-Uma arma só, mas **mutável**. O projétil sai na direção do alvo mais próximo dentro do alcance; se não
-tem alvo, sai na direção do mouse. Stats: dano, cadência, velocidade do projétil, perfuração, nº de
-projéteis (leque), crítico, alcance. **Sem munição, sem recarga** (isso é anti-diversão aqui).
-
-### 4.2 Drones / sentinelas
-Até **3 drones** orbitando o jogador, cada um atira sozinho. Escalam com os mesmos bônus de dano.
-É a melhoria que mais muda a *sensação* de poder — deve ser rara e comemorada.
-
-### 4.3 Aura elétrica
-Campo circular ao redor do jogador que dá dano por segundo e **lentidão** aos zumbis que entram.
-Escala com "Área" e "Dano". Serve pra punir a horda que cola em você.
-
-### 4.4 XP e level up
-- Zumbis soltam **gemas de XP** que voam pro jogador se estiverem perto (**ímã**).
-- Ao encher a barra: **o jogo pausa** e aparecem **3 cartas** de melhoria (raridade: comum/rara/épica,
-  com cor de moldura). Escolher 1. Sempre 3 opções, nunca repetir a mesma carta na mesma oferta.
-- Melhorias têm **nível máximo 5**; ao esgotar o pool, oferecer "Cura +30" e "Almas +20" como reserva.
-
-### 4.5 Ondas (escalonamento infinito)
-- Onda dura **35 segundos**. No fim, um "respiro" de 4s com anúncio grande (`ONDA 07`) e spawn pausado.
-- Cada onda aumenta: **vida, dano, velocidade, taxa de spawn e máximo simultâneo** (tabela no doc 04).
-- A cada 5 ondas: **BOSS** (não conta no respiro, o respiro vem depois da morte dele).
-- Elites começam na onda 3 (aura dourada, 3× vida, 2× dano, mais XP/almas).
-- **Nunca** usar `Math.pow` com expoente que estoure pra `Infinity` — clampar multiplicadores.
-
-### 4.6 Almas (meta-moeda)
-- Zumbis comuns: 6% de chance de soltar 1 alma. Elites: 3–5. Boss: 25.
-- Persistem em `localStorage` entre partidas.
-- Loja acessível no **menu inicial** e na **tela de game over**: compra melhorias permanentes.
-- Morte não é punição total: você sempre sai com algo pra gastar. É isso que faz voltar.
-
-### 4.7 Drops de campo
-- **Kit médico** (cura 25) — 1,5% dos comuns, cai do boss (2).
-- **Ímã total** — puxa todas as gemas da tela (raro).
-- **Granada grátis** — reseta o cooldown da granada.
-- Tudo com **aviso visual no chão** (anel pulsante) e tempo de vida de 20s.
+**Decisões:** 2 slots de arma (não mochila infinita) para forçar escolha; recarga **manual possível**,
+porque recarregar na hora errada é a tensão clássica do gênero; construir é **tecla**, não menu — não
+quebra o ritmo.
 
 ---
 
-## 5. Tipos de zumbi (7 + elite + boss)
+## 4. Estrutura de uma partida
 
-| # | Nome | Silhueta (desenhada por código) | Papel | Como te mata |
-|---|---|---|---|---|
-| 1 | **Caminhante** | corpo curvado, braços pra frente, 2 pernas, cabeça tombada | bucha de XP | te encurrala em número |
-| 2 | **Corredor** | esguio, inclinado pra frente, pernas longas, sem braços erguidos | pressão | corrida em linha reta te pega desprevenido |
-| 3 | **Rastejante** | baixo, 4 membros, arrasta (spawna em grupo de 4) | enxame | passa por baixo do seu fogo concentrado |
-| 4 | **Brutamontes** | largo, ombros enormes, braços grossos, quase sem pescoço | tanque | empurra e te tira do lugar |
-| 5 | **Cuspidor** | barriga inchada, cabeça pequena, fica **longe** (~230px) e cospe | zonear | te obriga a sair do lugar seguro |
-| 6 | **Explosivo** | barriga pulsante amarelo-esverdeada, pernas curtas, anda trêmulo | kamikaze | explode ao morrer (e ao te alcançar) |
-| 7 | **Gritador** | boca enorme, corpo fino, fica atrás da horda e **grita** | suporte | buffa +25% velocidade dos aliados por 4s |
-| — | **Elite** | qualquer tipo + aura dourada + 30% maior | mini-chefe | 3× vida, 2× dano, dropa muito |
-| — | **BOSS "Aberraça"** | massa de 3 corpos fundidos, 3 cabeças, braços múltiplos | chefe | *stomp* (onda de choque), *investida*, e invoca 6 rastejantes |
+```
+LOBBY → CARREGANDO (fade) → PARTIDA → GAME OVER → LOBBY
+                                 ├── PAUSA
+                                 └── PERK (overlay rápido, não pausa o jogo)
+```
 
-**Cada tipo precisa ser reconhecível por silhueta em 0,2s**, mesmo em preto-e-silhueta. É o teste de arte.
+- Ao entrar: **2,5 s de preparação** com "HORDA 1 EM..." enquanto você vê o mapa (tempo de ler).
+- Cada horda termina com **6 s de trégua**: sombra cai, zumbis param de nascer, aparece o resumo
+  (`HORDA 04 LIMPA · +180 MOEDAS`) e você corre para reparar/construir/comprar. **A trégua é onde o jogo
+  acontece.**
+- Hordas 1–10 têm **2 ondas de spawn** cada (dois "bichos" de zumbis); depois disso, 3–6 pulsos por horda.
+- Não existe tela de vitória.
 
 ---
 
-## 6. Habilidades especiais (4)
+## 5. Sistemas em detalhe
 
-| Tecla | Nome | Efeito | CD |
-|---|---|---|---|
-| Espaço | **Dash** | avanço rápido na direção do movimento, **invencível** durante 0,28s, deixa rastro | 2,5s |
-| Q | **Onda de Choque** | anel de 180px: dano + **empurrão forte** (reseta a horda de cima de você) | 9s |
-| E | **Granada Incendiária** | arremesso no cursor; explode e deixa **poça de fogo** 4s com dano contínuo | 12s |
-| R | **FÚRIA** | 6s: cadência ×2, projéteis perfuram, borda da tela pulsa vermelho | 45s |
+### 5.1 Hordas (abate total)
+- O contador é **restam N**. A horda só fecha quando N = 0.
+- O total de zumbis por horda cresce conforme o doc 04, e eles entram em **pulsos** de 6–14 vindos de
+  3–5 pontos de spawn escolhidos longe do jogador (nunca na cara).
+- Zumbis nunca param de perseguir: sem "desistir" e sem ficar parado em canto. Se o jogador se entoca,
+  os zumbis **quebram a barricada** e entram.
+- A cada 10 hordas, entra um **especial novo** com anúncio de 2 s (`NOVO: CUSPIDOR`).
 
-Regras: cooldown **só corre enquanto o jogo está rodando**; habilidade sem uso fica "carregada" e o HUD
-mostra o anel de recarga. Nenhuma habilidade deve ser obrigatória pra sobreviver aos primeiros 60s.
+### 5.2 Moedas e economia da partida
+- Abate comum: **10 moedas**; especial: 30–60; tanque: 40. Bônus de 50 por horda limpa sem levar dano.
+- **Sempre** é pouca: a curva de custo dos doc 04 obriga a escolher entre "arma melhor" e "defesa".
+- Moeda **não** expira e **não** é perdida na morte (na morte ela vai embora; é a run que acaba).
+- Sem moeda flutuando: o valor entra direto na carteira com um `+10` subindo (evita corrida por coleta).
+
+### 5.3 Pontos de compra (paredes)
+Três tipos de placa no mapa, sempre visíveis:
+| Placa | O que faz |
+|---|---|
+| **Arma** (verde) | compra a arma daquela placa e ocupa o slot ativo (custa 300–1.800) |
+| **Munição** (branca) | reabastece a arma atual (custa 60–200, sobe por horda) |
+| **Melhoria** (azul) | upgrade permanente da arma atual: +dano / +pente / −recarga (custa 400–900) |
+Comprar exige **ficar 0,8 s** no ponto com **E** (barra de progresso) — dá tempo de ser interrompido.
+
+### 5.4 Barricadas
+- Vagas marcadas no mapa (7 no Telhados) — você **não** planta em qualquer lugar: planta **nas vagas**.
+  Isso mantém o mapa legível e impede "parede de barricada sem fim".
+- Custo progressivo por quantidade de barricadas **vivas** na partida: 50, 80, 90, 100, 110, 120, 130.
+- **600 HP**. Zumbi que alcança a barricada para e bate (8 dano/s) até quebrar; quebrar leva ~2 zumbis e
+  8 s. **Não** atrasa para sempre — é atraso tático, não muralha.
+- **Reparo**: **E** na barricada danificada custa metade do preço atual, +40% HP.
+- Animação: tábuas desenhadas por código, quebrando lasca por lasca conforme HP cai; ao quebrar, deixa
+  **madeira no chão** por 10 s (só visual).
+- Zumbi **rastante** e **frenético** passam por baixo/por cima com 3× o tempo — a barricada não é universal.
+
+### 5.5 Torretas
+- Vagas de torreta (4 no Telhados). Custo progressivo: 400, 550, 700, 850.
+- Alcance **340px**, dano 12/s, cadência 5 tiros/s, 400 HP.
+- **Munição** de 240 tiros; acaba → para de atirar; recarregar custa 150 moedas (**E**).
+- Prioriza o zumbi **mais próximo** dentro do alcance; nunca atira através de parede.
+- Pode ser destruída (zumbi bate como na barricada). É investimento com risco: longe de você, você não a
+  defende.
+
+### 5.6 Armas
+- Começa com **Pistola** (munição infinita de reserva, pente 12). As outras **acabam** → você volta pra
+  pistola. Isso impede "comprei a melhor logo na horda 3".
+- **2 slots.** Comprar uma terceira pergunta qual substituir.
+- Cada arma: dano, cadência, pente, recarga, alcance, precisão (dispersão em graus), perfuração e preço.
+  Tabela completa no doc 04.
+- `R` recarrega (1,1–2,4 s, você fica mais lento durante). Recarregar com 1 bala no pente é a jogada.
+- **Melhoria de arma** (placa azul): +20% dano, +50% pente ou −25% recarga, uma vez cada por arma.
+
+### 5.7 Perks (XP dentro da partida)
+- Além de moedas, o abate dá **XP**; a barra de XP enche a cada ~35 abates e mostra **1 carta** (não 3 —
+  o ritmo é outro, aqui não pausa o jogo: a carta aparece no canto e você aperta **1/2/3** em 6 s).
+- Perks são **deste projeto** (nomes no doc 04): corrida, recarga rápida, mais vida, ímã de moeda,
+  balas perfurantes, tiro duplo, entre outros. Máx. 4 niveis por perk; 3 slots ativos.
+- Perks **não** substituem armas: são temperos, não a build.
+
+### 5.8 Zumbis
+Sete tipos com silhueta, cor e comportamento próprios (nomes e números no doc 04):
+**Caminhante** (bucha), **Frenético** (corre em disparada), **Rastejante** (baixo, difícil de acertar,
+passa rápido por barricada), **Tanque** (muito HP, empurra), **Cuspidor** (atira de longe), **Explosivo**
+(explode em área), **Espreitador** (surge de vãos e telhados, aparece do nada atrás de você).
+Especiais entram a partir da horda 31; antes disso, só quantidade e resistência.
+
+### 5.9 Almas (meta-moeda) e lobby
+- 1 alma a cada **25 abates** + 3 por horda limpa + 15 por horda 10/20/30 alcançada.
+- Gastas no lobby em melhorias **permanentes** (arma inicial, vida, HP de barricada, preço de torreta,
+  sorte). É o que faz voltar no dia seguinte.
+- Morrer **sempre** rende almas: 4 minutos de run já compram algo.
+
+---
+
+## 6. Mapa 1 — TELHADOS (croqui próprio)
+
+> Não copiado de nada. É o mapa que define a paleta e as regras usadas pelos mapas futuros.
+
+**Premissa:** uma laje de cobertura de um edifício comercial no fim da tarde; o resto da cidade queimando
+ao fundo (pintado, decorativo). Chão de **asfalto de laje** (`#4a4f57`) com emendas de manta
+impermeável, poças rasas, ACs, dutos, caixas d'água e um **heliponto** pintado.
+
+**Silhueta (32 × 32 tiles de 100px = 3200 × 3200):**
+
+```
+┌──────────────────────── PARAPEITO (parede, 40px) ─────────────────────┐
+│  [AC]      DUTO═══════════════════[CAIXA D'ÁGUA]      [AC][AC]        │
+│                                                                       │
+│  [VAGA B1]        (área aberta central)              [PLACA ARMA 1]   │
+│                                                                       │
+│      ┌──── casa de máquinas ────┐        [heliponto ○]                │
+│      │  porta     porta         │                                     │
+│      └──────────────────────────┘   [PLACA MUNIÇÃO]      [VAGA T1]    │
+│                                                                       │
+│  [VAGA B2]     [VAGA B3]      (corredor leste)         [VAGA B4]      │
+│                                                                       │
+│  DUTO═════════════════  [VAGA T2]   [AC]   [PLACA ARMA 2]  [PLACA UP] │
+│                                                                       │
+│  [VAGA B5]   [VAGA B6]        [escada]        [VAGA B7]   [VAGA T3]   │
+└───────────────────────────────────────────────────────────────────────┘
+    spawns: 4 cantos + 2 portas da casa de máquinas + escada (total 7)
+```
+
+- **3 zonas de respiro**: heliponto (aberto, sem cobertura), corredor leste (funil), casa de máquinas
+  (dois acessos, morte se entrar sem saída).
+- **7 vagas de barricada** (B1–B7) marcadas com tinta amarela `BARRICADA`.
+- **4 vagas de torreta** (T1–T4) com base de concreto e cabo solto.
+- **5 placas**: 2 de arma, 1 de munição, 1 de melhoria, 1 de munição no canto leste (arriscada de pegar).
+- Os outros 5 mapas no lobby: **Metrô, Hospital, Escola, Instalações, Zona Urbana** — cards com cadeado e
+  `EM BREVE`, usando a arte de fundo procedural (só o cartão, sem gameplay).
 
 ---
 
 ## 7. Direção de arte procedural
 
-Sem um único PNG. Tudo com `ctx.beginPath/arc/roundRect/fill/stroke` e gradientes. Receita:
+Zero PNG/JPG. Tudo `ctx.beginPath / rect / roundRect / arc / lineTo` + gradientes.
 
-1. **Pré-renderizar** cada sprite em um **canvas offscreen** por tipo × **8 rotações** × **2 frames de
-   animação** (marcha), no carregamento. Depois só `drawImage` — é o que garante 300 zumbis a 60 FPS.
-2. **Paleta** (usar exatamente):
-   `#0b0d10` chão · `#151a20` grade · `#26303a` borda · `#7fe3ff` jogador · `#ffd75e` tiro ·
-   `#9fe870` zumbi base · `#5f9e3f` zumbi escuro · `#c8d44a` explosivo · `#b04ad8` gritador ·
-   `#e0533f` sangue/dano · `#8a1f2b` sangue seco · `#ff9f1c` fogo · `#f2f4f8` texto.
-3. **Contorno grosso** (2px, quase preto) em tudo que é entidade: é o que faz o visual "pixel-art
-   moderno" e mantém leitura sobre o chão sujo.
-4. **Sombra elíptica** embaixo de cada entidade (achatada na vertical) = profundidade instantânea.
-5. **Walk cycle** = 2 frames: pernas alternando (`sin(t*10)`), corpo com leve bob vertical, braços
-   oscilando. Nada além disso.
-6. **Juice**: flash branco por 60ms ao levar dano, partículas de sangue (8–12 por hit, gravidade,
-   desaceleração), **números de dano** subindo, screen shake de 3–14px conforme o impacto.
-7. **Vinheta** vermelha pulsando quando vida < 30% + batimento cardíaco no áudio.
+**Paleta oficial** (usar exatamente):
+| Uso | Hex |
+|---|---|
+| Fundo fora do mapa / céu ao fundo | `#1b1620` |
+| Chão de laje | `#4a4f57` · emendas `#3c4048` |
+| Parede/parapeito | `#8b8175` · topo `#a89c8c` |
+| Jogador | `#37c6ff` · contorno `#0d2233` |
+| Zumbi base | `#8fd14f` · escuro `#5c8f2f` |
+| Tanque | `#9a7b52` · Explosivo `#ffcf3d` · Cuspidor `#b06cf0` · Espreitador `#5b6b7a` |
+| Moeda | `#ffd44d` · Alma `#c07bff` · Munição `#f2f4f8` |
+| Compra OK | `#54e08a` · Perigo `#ff5548` · Fogo `#ff9f1c` |
+| Sangue | `#d63a30` · Sangue seco `#7d2320` |
 
----
-
-## 8. Áudio procedural (WebAudio, sem arquivos)
-
-Síntese pura com `OscillatorNode` + `GainNode` + ruído branco em buffer:
-- **Tiro**: square 220Hz→80Hz, 60ms, com ruído. Leve variação aleatória de pitch (evita fadiga).
-- **Hit**: ruído filtrado (bandpass 900Hz), 40ms.
-- **Morte**: saw 140→40Hz em 180ms + ruído.
-- **Level up**: arpejo 3 notas (C-E-G) em square.
-- **Dano no jogador**: senoide 90Hz curta + ruído grave.
-- **Boss**: drone grave contínuo + batida de tambor sintética.
-- Music: **não**. Um pad ambiente grave opcional, desligado por padrão.
-- Tudo com **limite de vozes** (máx. 12 simultâneas) e *mute* automático se `ctx.state === 'suspended'`.
-- Configurável: volume master / efeitos, e opção "modo streamer" (mudo).
+**Regras visuais**
+1. **Contorno 2px** quase preto em toda entidade — é o que dá o "adesivo" cartoon.
+2. **Sombra chapada** elíptica, deslocada 6px para baixo, sem blur.
+3. **Sangue divertido**: respingos arredondados, 8–12 partículas, e poças que ficam 12 s no chão.
+4. **Animação**: 4 frames por direção para andar (não 8 rotações de pose: o corpo gira e as pernas
+   trocam), 2 frames para atacar, 3 para recarregar, 3 para morrer (queda + poça).
+5. **Nada de blur**: sombra, fumaça e fogo são formas chapadas com alpha. Isso mantém 60 FPS.
+6. **Ui chapada**: placas e cards com canto arredondado 6px, borda 3px, sombra dura de 3px.
+7. **Sinalização**: toda vaga de construção tem ícone pintado no chão (martelo para barricada, cano para
+   torreta) — o jogador lê o mapa sem tutorial.
 
 ---
 
-## 9. Telas e fluxo
+## 8. Áudio procedural (WebAudio)
 
-```
-TÍTULO → (Loja de Almas) → PARTIDA → LEVEL UP (overlay) → PAUSA (overlay) → GAME OVER → (Loja) → TÍTULO
-```
-
-- **TÍTULO**: nome do jogo, recorde (onda + tempo + kills), total de almas, botões
-  `JOGAR` / `LOJA` / `COMO JOGAR` / `CONFIG` / `ZERAR SALVE`.
-- **GAME OVER**: "VOCÊ AGUENTOU 07:42", onda alcançada, kills, almas ganhas na partida, recorde novo
-  (com destaque), botões `DE NOVO (R)` / `LOJA` / `TÍTULO`.
-- **PAUSA**: retomar, config, abandonar.
-- Nenhuma tela deve exigir mouse — tudo navegável por teclado.
+Sem arquivos. Osciladores + ruído filtrado, com limite de 12 vozes simultâneas.
+- Tiro de pistola: burst de ruído 90 ms + square 180→70 Hz.
+- Espingarda: ruído largo 140 ms + grave 90 Hz, com *punch*.
+- Rifle: 3 cliques curtos, mais agudo.
+- Recarga: dois "clack" (ruído 20 ms) + slide.
+- Impacto em carne: ruído bandpass 700 Hz, 50 ms. (Acerto crítico: +1 tom agudo.)
+- Construir: marteladas em 3 tempos. Barricada quebrando: ruído grave + estalo de madeira.
+- Torreta: motor curto a cada 250 ms enquanto atira.
+- Moeda: sino de 2 notas subindo (não pode ser o som de moeda de outro jogo — aqui é uma terça menor).
+- Horda limpa: acorde ascendente de 3 notas. Nova horda: sino grave + tambor.
+- Dano recebido: sub-baixo + respiração curta. Morte: descida de tom de 1,2 s.
+- Pad ambiente grave e cíclico, volume baixo, configuração para desligar.
 
 ---
 
-## 10. Anti-metas (o que NÃO fazer)
+## 9. Telas
 
-- ❌ Não fazer o jogador recarregar arma (quebra o ritmo).
-- ❌ Não colocar inimigo que atira de fora da tela (injusto).
-- ❌ Não usar tela de "preparação" longa entre ondas (máx. 4s).
-- ❌ Não fazer a horda virar um "paredão sólido" — todo zumbi empurra os outros, mas com separação
-  suave; eles devem fluir como líquido, não como bloco.
-- ❌ Não usar cor vermelha pra zumbi comum (vermelho = dano/perigo não-inimigo).
-- ❌ Não implementar multiplayer, login, backend, save em nuvem, mobile touch-first.
+| Tela | Conteúdo |
+|---|---|
+| **LOBBY** | Logo, `CRIAR PARTIDA` (host, futuro MP), `ENTRAR` (código de sala, desabilitado com aviso "em breve"), **grade de mapas** (Telhados + 5 com cadeado), `LOJA DE ALMAS`, `CONFIG`, `RECORDES`. Navegação 100% teclado e mouse. |
+| **LOJA** | 6 melhorias permanentes com custo crescente e nível atual; saldo de almas; botão voltar. |
+| **CONFIG** | Volume, auto-fire on/off, screen shake, números de dano, redução de flash, apagar progresso. |
+| **CARREGANDO** | Fade preto, nome do mapa, dica aleatória (uma linha). |
+| **PARTIDA** | HUD: vida (barra + número), moeda, alma da run, arma + munição, barra de XP, horda e `restam N`, cronômetro, minimapa circular pequeno (opcional), avisos de compra. |
+| **PAUSA** | Retomar, config, abandonar (confirma). |
+| **GAME OVER** | `VOCÊ CAIU NA HORDA 17`, tempo, abates, moedas ganhas, almas ganhas, recorde (destaque se novo), `DE NOVO` / `LOBBY`. |
+
+**HUD — regras de layout:** canto inferior esquerdo = vida; inferior direito = arma/pente/munição;
+superior centro = horda + restam; superior esquerdo = moeda/alma; superior direito = cronômetro;
+barra de XP fina logo acima da vida. Nenhum painel cobre o centro da tela (onde está o jogador).
+
+---
+
+## 10. Anti-metas (não fazer)
+
+- ❌ Não fazer inimigo atirar de fora da tela.
+- ❌ Não deixar zumbi parado "burro" no canto: se não achar caminho em 3 s, ele **quebra a parede
+  mais próxima** (ou usa o caminho alternativo marcado no mapa).
+- ❌ Não cobrar moeda para respirar (sem "pague para continuar" na morte).
+- ❌ Não fazer a barricada durar para sempre — ela atrasa, não bloqueia.
+- ❌ Não usar 15 cores na tela: a paleta é fixa (seção 7).
+- ❌ Não pausar o jogo na carta de perk (quebra o ritmo do abate total).
+- ❌ Não copiar HUD, nomes, mapas ou perks de jogos existentes.
+- ❌ Não implementar multiplayer, backend, login por enquanto.

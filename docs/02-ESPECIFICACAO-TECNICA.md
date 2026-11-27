@@ -1,288 +1,279 @@
 # ESPECIFICAÇÃO TÉCNICA
 
-> Documento 3 de 6. É o "como implementar". Arquitetura, estruturas de dados, assinaturas de funções,
-> ordem do loop, grid espacial, save. Quem implementa deve seguir as seções na ordem em que aparecem.
+> Documento 3 de 6. É o **como implementar**: arquitetura, formato de mapa, loop, IA, grid, performance,
+> save e checklists. Quem implementa segue as seções na ordem.
 
 ---
 
-## 1. Restrições de plataforma (repetindo porque é o que mais quebra)
+## 1. Plataforma e restrições (é o que mais quebra — leia duas vezes)
 
-- `index.html` + `game.js` em **IIFE** (`(function(){ ... })();`) — **não** use `type="module"`,
-  porque módulo ES **não roda em `file://`** por causa de CORS. Isso é decisão fechada.
-- Sem `fetch`, sem `import`, sem `<img>`, sem `<audio>`, sem fontes web.
-- Canvas com `width/height` ajustados a `devicePixelRatio` (máx. 2) para nitidez; `image-rendering`
-  em `pixelated` **não** é necessário (arte vetorial), mas desative antialiasing onde desenhar grade.
-- Resolução lógica de referência: **1280×720**; escalar o canvas por CSS (`100vw/100vh`) mantendo
-  proporção e usar `letterbox`. Nunca deixar a arena mudar de tamanho com a janela.
-- `preventDefault()` em setas, espaço, Tab e Esc (evitar rolagem da página).
+- `index.html` + `game.js` carregado por `<script src="game.js">` em **IIFE**, **não** `type="module"`
+  (módulo ES não roda em `file://` por CORS). Isso é decisão fechada: o jogo tem que abrir com duplo-clique.
+- Nada de `fetch`, `import`, `<img>`, `<audio>`, fonte web, CDN.
+- Canvas dimensionado por `devicePixelRatio` (máx 2) com resolução lógica de **1280 × 720**, escalado por
+  CSS mantendo proporção e letterbox. A câmera **não** muda de zoom com a janela.
+- `preventDefault()` em setas, espaço, Tab, Esc, F3 e no botão direito do mouse.
+- `document.hidden` → pausa automática; ao voltar, descarta o `dt` acumulado.
+
+### Arquivos
+
+```
+/index.html          canvas + CSS (fundo #1b1620) + <script src="game.js">
+/game.js             engine + todos os sistemas (IIFE, ~4.000 linhas, em seções)
+/maps.js             SÓ os dados dos mapas (IIFE que registra em window.MAPS)
+/README.md
+/docs/…
+```
+
+`maps.js` separado é requisito do briefing ("mapas organizados, expansíveis"): dá pra abrir, copiar um
+bloco, mudar o nome e já ter um mapa novo.
 
 ---
 
 ## 2. Arquitetura
 
-Um arquivo, mas com **seções isoladas** e **estado global explícito** (nada de `this` espalhado):
+Estado global explícito, sem classes de jogo (objetos literais, tudo serializável):
 
 ```js
-// ===== CONFIG =====
-const CFG = { W:1280, H:720, ARENA:3200, CELL:80, WAVE_TIME:35, BREATH_TIME:4, MAX_ZOMBIES:420, ... };
+const CFG = { W:1280, H:720, TILE:100, CELL:80, MAX_ZOMBIES:220, ... };
 
-// ===== ESTADO =====
 const G = {
-  state:'TITLE',        // TITLE | PLAYING | LEVELUP | PAUSED | GAMEOVER
-  t:0, dt:0, frame:0, time:0,
-  wave:0, waveTimer:0, spawnBudget:0,
-  player:{...}, zombies:[], bullets:[], eBullets:[], xp:[], drops:[], particles:[], texts:[],
-  firePatches:[], shockwaves:[],
-  cam:{x:0,y:0,shake:0},
-  grid:null, save:null, settings:null, run:{kills:0, souls:0, startTime:0}
+  screen:'LOBBY',           // LOBBY|LOADING|PLAYING|PAUSED|GAMEOVER|SHOP|CONFIG|SCORES
+  mapId:null, map:null,     // dados do mapa carregado
+  t:0, dt:0, hitstop:0, time:0,
+  horde:0, remaining:0, phase:'PREP'|'FIGHT'|'BREAK',
+  phaseTimer:0, spawnQueue:[],
+  players:[ /* 1 no solo */ ],   // <-- SEMPRE array (prontidão MP)
+  zombies:[], bullets:[], eBullets:[], coins:[], parts:[], texts:[], pickups:[],
+  barricades:[], turrets:[], purchases:[],
+  cam:{x,y,shake,lookX,lookY},
+  grid:null, rng:{seed, state},
+  meta:{souls, perm:{...}, best:{...}, stats:{...}},
+  settings:{volume, autoFire, shake, dmgNumbers, lowFlash, streamer},
+  runStats:{kills, coinsEarned, dmgTaken, startTime, hordeReached}
 };
 ```
 
-### Estruturas (usar objetos literais simples, sem classes — mais fácil de serializar/depurar)
+`players[]` com 1 elemento no solo: **toda** função de dano/compra/coleta recebe `playerId`. Nenhum
+`G.player` global. Isso é o que transforma o solo em coop depois sem refatorar.
 
-```js
-// Jogador
-{ x,y, vx,vy, r:14, hp, maxHp, regen, speed,
-  fireCd, dmg, rate, bspeed, pierce, shots, spread, crit, critMul, range, projSize,
-  magnet, area, xp, xpNext, lvl,
-  abilities:{dash:{cd,cdMax,active}, shock:{...}, nade:{...}, fury:{...}},
-  drones:[], aura:{on,lvl,dmg,radius},
-  iframes:0, hitFlash:0, facing:0, animT:0 }
-
-// Zumbi
-{ id, type, x,y, vx,vy, r, hp, maxHp, dmg, speed, xp, souls,
-  state:'chase'|'windup'|'attack'|'flee', stTimer,
-  elite:false, boss:false, flash:0, slow:0, buff:0,
-  rot:0f..7, animFrame:0, wander:Math.random()*1000 }
-
-// Projétil: {x,y,vx,vy,r,dmg,pierce,life,hitIds:Set|array,from:'player'|'enemy',type}
-// Gema XP: {x,y,vx,vy,val,life}
-// Drop:   {x,y,kind:'hp'|'magnet'|'nade',life}
-// Partícula: {x,y,vx,vy,life,maxLife,color,size}
-// Texto de dano: {x,y,vy,life,txt,color,crit}
-```
-
-### Ordem do loop de update (fixa — não reordenar)
+### Ordem fixa do update (não reordenar)
 
 ```
-1 input.poll()            // teclas, mouse → intents
-2 updatePlayer(dt)        // movimento, iframes, regen, timers
-3 updateAbilities(dt)     // dash, aura, drones(disparo próprio)
-4 updateWeapon(dt)        // auto-fire / fúria
-5 updateBullets(dt)       // player + enemy bullets, colisão com grid
-6 updateZombies(dt)       // IA, separação, dano de contato
-7 resolveCollisions()     // separação jogador↔zumbi + empurrão
-8 updateWaves(dt)         // spawn, fim de onda, respiro, boss
-9 updatePickups(dt)       // xp, drops, ímã
-10 updateFx(dt)           // partículas, textos, fogo, ondas de choque, shake decay
-11 updateCamera(dt)
-12 render()               // chão → sombras → entidades ordenadas por y → fx → UI
+1 Input.poll()
+2 updatePhase(dt)        // PREP → FIGHT → BREAK
+3 updatePlayers(dt)      // movimento, colisão, mira, tiro, recarga, perks
+4 updatePurchases(dt)    // barra de compra no ponto
+5 updateBullets(dt)      // tiros do jogador (grid)
+6 updateZombies(dt)      // IA, ataque em barricada/torreta/jogador, separação
+7 updateEnemyBullets(dt)
+8 updateDefenses(dt)     // barricadas (HP, quebra), torretas (mira, tiro, munição)
+9 resolveCollisions(dt)  // empurrão jogador↔zumbi, limites
+10 updateCoins/Pickups(dt)
+11 updateFx(dt)          // partículas, textos, shake, sangue
+12 updateCamera(dt)
+13 render()
 ```
 
-Detalhe de render: **entidades ordenadas por `y`** (painter's algorithm) para que quem está "abaixo"
-apareça na frente — é o que faz o topdown parecer tridimensional sem perspectiva.
+Render: **chão do mapa → manchas de sangue (camada) → sombras → entidades ordenadas por `y` →
+projéteis → FX → HUD**. Ordenar por `y` é o que faz o topdown parecer ter profundidade sem perspectiva.
 
 ---
 
-## 3. Grid espacial
+## 3. Formato de mapa (o requisito nº 1 do projeto)
+
+Mapa = ** objeto de dados puro**, sem função, sem canvas, sem referência a entidade. Estilo Tiled simplificado:
 
 ```js
-class Grid {
-  constructor(size, cell) { this.cell=cell; this.n=Math.ceil(size/cell); this.buckets=new Map(); }
-  key(cx,cy){ return cy*this.n+cx; }
-  clear(){ this.buckets.clear(); }
-  insert(e){ const k=this.key((e.x/this.cell)|0,(e.y/this.cell)|0); let b=this.buckets.get(k); if(!b){b=[];this.buckets.set(k,b);} b.push(e); }
-  queryCircle(x,y,r,out){ // varre só as células que o círculo toca, filtra por dist²
-  }
+{
+  id:'telhados', name:'TELHADOS', subtitle:'Cobertura do Edifício Aurora',
+  locked:false, difficulty:1,
+  size:{tw:32, th:32, tile:100},
+  palette:{ floor:'#4a4f57', floorLine:'#3c4048', wall:'#8b8175', wallTop:'#a89c8c',
+            accent:'#d6c9a8', fog:'#1b1620' },
+  // paredes: retângulos em TILES (x,y,w,h) -> viram AABB de colisão
+  walls:[ {x:0,y:0,w:32,h:0.4,kind:'parapet'}, {x:8,y:12,w:8,h:6,kind:'room'}, ... ],
+  // obstacles: props decorativos COM colisão (ar-condicionado, caixa d'água, duto)
+  obstacles:[ {x:4,y:3,w:2,h:2,kind:'ac'}, {x:20,y:3,w:3,h:3,kind:'watertower'}, ... ],
+  // decor: SEM colisão (pintura de chão, poças, heliponto, rachaduras)
+  decor:[ {x:18,y:14,w:6,h:6,kind:'helipad'}, {x:2,y:26,w:4,h:4,kind:'puddle'}, ... ],
+  // vagas de construção (posição + rotação) — o jogador só constrói aqui
+  barricadeSlots:[ {x:5.5,y:6.5,rot:0}, ... 7 itens ],
+  turretSlots:[ {x:24.5,y:14.5}, ... 4 itens ],
+  // pontos de compra
+  buyPoints:[
+    {x:2.5,y:11.5,rot:1,type:'weapon',weapon:'shotgun',cost:500},
+    {x:29.5,y:7.5,rot:1,type:'ammo',cost:120},
+    {x:29.5,y:20.5,rot:1,type:'upgrade',cost:600}
+  ],
+  // pontos de spawn de zumbi (com prioridade de distância do jogador)
+  spawns:[ {x:1,y:1},{x:30,y:1},{x:1,y:30},{x:30,y:30},{x:12,y:12},{x:15,y:12},{x:16,y:31} ],
+  // zonas nomeadas (usadas por IA, dicas e debug)
+  zones:[ {id:'helipad',name:'HELIPONTO',x:18,y:14,w:6,h:6},
+          {id:'machines',name:'CASA DE MÁQUINAS',x:8,y:12,w:8,h:6} ],
+  ambient:{ tint:'#2a2030', vignette:0.25, props3d:['cityFire'] }, // fundo decorativo fora do mapa
+  tips:['Barricadas atrasam, não prendem. Repare antes de quebrar.']
 }
 ```
 
-- Reconstruir o grid **1× por frame** com os zumbis vivos (não por consulta).
-- Usado em: mira automática, colisão projétil↔zumbi, aura, onda de choque, explosões.
-- Célula 80px: com 300 zumbis numa arena cheia, média ~3 por célula → custo trivial.
-- **Buffer reutilizado**: `queryCircle` escreve num array `out` reaproveitado, nunca aloca por chamada.
+**Derivação (feita 1× no load, nunca no frame):**
+- `walls`/`obstacles` (tiles) → array de AABB em pixels (`solidRects`).
+- Chão → 1 canvas offscreen 3200×3200 desenhado **uma vez** (laje, emendas, decor) e depois só
+  `drawImage` do pedaço visível. É o que permite mapa bonito sem custo por frame.
+- Grafo de navegação simples: grade de 100px com células bloqueadas; A* só quando um zumbi fica preso
+  (nunca por zumbi por frame).
 
-### Separação entre zumbis (o "fluir como líquido")
-Para cada zumbi, consultar vizinhos no raio `r*1.6` e aplicar empurrão **fraco**:
-`overlap * 0.5` no eixo normalizado, limitado a `speed*0.6` por segundo. Sem física real, sem iteração
-múltipla. Com 1 iteração já resolve visualmente e custa barato.
+**Regras:** engine não conhece nenhum id específico de mapa. Achar vaga/placa mais próxima é busca em
+`map.barricadeSlots` etc. Criar mapa novo = novo bloco em `maps.js` + card no lobby (lista `MAPS`).
 
 ---
 
-## 4. Sprites procedurais (pré-render)
+## 4. Colisão
+
+- **AABB × círculo** (jogador e zumbi são círculos). Resolver eixo por eixo (move X, resolve, move Y,
+  resolve) para deslizar em parede sem travar.
+- Separação de zumbis: vizinhos no grid (raio `r*1.6`), empurrão `overlap*0.45`, limitado — 1 iteração só.
+- Barricada = AABB com HP; zumbi que colide troca para estado `attack` (para, bate em ritmo).
+- Tiro: colisão **por segmento** (distância ponto-segmento) para não atravessar zumbi em alta velocidade.
+- Tirar projétil de dentro de parede: se o segmento cruzar `solidRects`, morre no impacto (com faísca).
+
+---
+
+## 5. Grid espacial
 
 ```js
-const SPR = {}; // SPR.zombie[type][rot][frame] -> HTMLCanvasElement
-
-function buildSprites() {
-  for (const type of ZOMBIE_TYPES) {
-    const def = ZOMBIE_DEFS[type];
-    SPR[type] = [];
-    for (let rot=0; rot<8; rot++) {
-      SPR[type][rot] = [0,1].map(frame => drawZombieToCanvas(def, rot, frame, def.elite));
-    }
-  }
-  SPR.player = [...]; SPR.spitterBall = ...; // etc.
-}
+class Grid { constructor(size, cell){...} clear(){...} insert(e){...}
+  queryCircle(x,y,r,out){...} queryRect(rect,out){...} }
 ```
-
-- Canvas de sprite: `(r*2+8)*SCALE` quadrado, `SCALE = 2` para nitidez em telas retina.
-- Rotação: `round(angle / (Math.PI/4)) % 8`. Passo de 45° — suficiente para topdown e barato.
-- Corpo desenhado **para cima** (norte) na rotação 0; as outras rotações rotacionam o próprio ctx
-  antes de desenhar (pré-render, custo zero em runtime).
-- Boss: gerar sprites 1× na entrada da onda (aceitável, custa alguns ms).
-- **Nunca** chamar `ctx.rotate`/`ctx.save` por zumbi no desenho final — só `drawImage`.
-
-Funções de desenho base (`drawZombieToCanvas(def, rot, frame, elite)`):
-`roundRect` para torso, 2 círculos para olhos (glow fraco), 2 retângulos para pernas alternando
-`sin(frame*PI)`, braços como `lineCap:'round'` com `lineWidth` grosso. Aura dourada = `shadowBlur` +
-anel por trás, só nas elites (elas são poucas).
+- Reconstruído **1× por frame** com zumbis vivos. Célula 80px.
+- Usado por: mira do jogador, mira da torreta, colisão de tiro, explosão, IA de curto alcance.
+- Buffer reaproveitado (`Grid.out`) — zero alocação por consulta.
 
 ---
 
-## 5. Entrada
+## 6. IA dos zumbis (comportamento, não pathfinding caro)
+
+Máquina de estados simples por zumbi: `spawn → chase → attack → stagger → dead`.
+- `chase`: vetor direto ao alvo. Se colidir com parede 2 frames seguidos **e** distância > 300 px,
+  entra em `detour` por 1,2 s usando A* na grade de 100px (cacheado por 0,5 s por célula de origem).
+- Alvo: jogador mais próximo com linha de visão; sem visão, o mais próximo em linha reta.
+- Zumbi que alcança uma **barricada** no caminho entra em `attack` (bate nela) — é o comportamento central.
+- Zumbi que alcança uma **torreta** e ela está mais perto que o jogador: prioriza a torreta 30% das vezes.
+- `frenético`: aceleração em 3 fases (andar → windup 0,25 s → dash 0,55 s).
+- `espreitador`: desova em spawns marcados `surface:'roof'`, fica invulnerável e semi-transparente por
+  1,2 s no ponto alto, cai e passa a perseguir.
+- `cuspidor`: mantém 200–260 px, recua se o jogador chega perto, cospe projétil em arco.
+- Cada zumbi tem `thinkTimer` (0,15 s + jitter) — IA não roda todo frame para todos.
+
+---
+
+## 7. Render
+
+- **Mapa pré-renderizado** (1 canvas por mapa, 3200×3200) → `drawImage` do viewport.
+- **Sprites de entidade pré-renderizados** em canvas offscreen: jogador e cada tipo de zumbi com
+  **4 direções × 3 estados** (andar 4 frames, atacar 2, morrer 3). Rotação NÃO é por sprite: o corpo usa
+  4 poses (N/S/L/O) — silhueta cartoon fica melhor e economiza memória.
+- **Camada de sangue**: canvas próprio, entre chão e entidades, com fade global a cada 12 s
+  (`globalAlpha` 0,012 por frame). Poças somem, o chão não fica imundo pra sempre.
+- Ordenar por `y` só o que desenha (array `drawList` reaproveitado, `sort` nativo — 200 itens é barato).
+- Partículas em **pool de 500**, reciclagem por índice. Textos em pool de 40.
+- Nada de `ctx.save/restore` por entidade: `setTransform` calculado manualmente.
+
+---
+
+## 8. Áudio
+
+`Audio2` com `ctx` criado no primeiro gesto do usuário (política de autoplay do Chrome).
+`master → sfx` (gain) e `master → pad` (ambiente). Limite de **12 vozes**; se estourar, descarta o novo.
+Ruído branco num `AudioBuffer` de 1 s reaproveitado. Tudo com envelope curto (attack 3–8 ms).
+Config: volume (0–1), mudo (modo streamer).
+
+---
+
+## 9. Save (localStorage)
 
 ```js
-const Input = {
-  keys:{}, mouse:{x:0,y:0,down:false,worldX:0,worldY:0, moved:false},
-  poll(){ /* lê keys, converte para intents */ },
-  axis(){ /* retorna {x,y} normalizado de WASD/setas */ }
-};
+'hordas_save_v1'    → { souls:0, perm:{weaponStarter:0, vitality:0, barricadeHp:0, turretCost:0, luck:0, magnet:0},
+                        best:{horde:0,time:0,kills:0,coins:0}, stats:{runs:0,kills:0,hordes:0}, scores:[...] }
+'hordas_settings_v1'→ { volume:.7, autoFire:false, shake:true, dmgNumbers:true, lowFlash:false, streamer:false }
 ```
-- `mousemove` → guarda posição em coordenadas de tela; converte pra mundo com `cam` no `poll`.
-- `keydown` só dispara ação em `!e.repeat` para dash/fúria/pausa (não repetir cooldown).
-- No `LEVELUP`, teclado 1/2/3 escolhe carta; setas + Enter também; Esc volta ao título **com
-  confirmação** (segurar 1s ou segundo Esc) — evitar perder a run por engano.
+Leitura com `try/catch` e merge de defaults (`??`) para save antigo não quebrar. Escrita com debounce de
+500 ms. "Apagar progresso" no CONFIG pede confirmação segurando 2 s.
 
 ---
 
-## 6. Áudio
+## 10. Performance — checklist
 
-```js
-const Audio2 = {
-  ctx:null, master:null, voices:0, MAX:12,
-  init(){ this.ctx = new (window.AudioContext||window.webkitAudioContext)(); ... },
-  // must be resumed on first user gesture (click/keydown) — obrigatório no Chrome
-  beep(freqA, freqB, dur, type, vol, noiseMix){ ... },
-  shoot(), hit(), death(), levelUp(), hurt(), bossRoar(), boom(), pickup()
-};
-```
-- `init()` chamado no primeiro `keydown`/`click` (política de autoplay).
-- Cada som: `OscillatorNode` + gain ADSR simples (ataque 5ms, decay linear até 0).
-- Ruído: 1 buffer de 1s gerado 1×, tocado via `AudioBufferSourceNode` + `BiquadFilter` (bandpass).
-- Contar vozes ativas; se `voices >= MAX`, **descartar** o novo som (nunca enfileirar — áudio atrasado
-  é pior que áudio faltando).
-- `master.gain.value = settings.volume` (0–1); "modo streamer" = 0.
+- [ ] Chão do mapa em canvas offscreen (nunca redesenhar laje por frame).
+- [ ] Sprites de entidade pré-renderizados; zero `beginPath` no loop de entidades.
+- [ ] Blood canvas separado, limpo por fade, não por `clearRect` por frame.
+- [ ] Grid 1×/frame; consultas com buffer.
+- [ ] Remoção por **swap-pop** (nunca `splice` no meio de loop grande).
+- [ ] `MAX_ZOMBIES` 220 (solo) / 300 em stress test.
+- [ ] Partículas 500, textos 40, sangue limitado a 60 respingos por horda.
+- [ ] IA com `thinkTimer` (nunca todos os zumbis pensando todo frame).
+- [ ] `lowFx` desliga partículas, shake e números de dano.
+- [ ] F3 mostra FPS, contagem de entidades e tempo de update/render.
+
+Meta: **150 zumbis + 4 torretas + 300 partículas ≥ 58 FPS** num notebook comum.
 
 ---
 
-## 7. Save
-
-```js
-const SAVE_KEY = 'hordas2d_save_v1';
-// { souls:0, best:{wave:0,time:0,kills:0}, perm:{dmg:0,hp:0,speed:0,magnet:0,xp:0,cdr:0,revive:0},
-//   totalRuns:0, totalKills:0, unlocked:[] }
-
-const SET_KEY = 'hordas2d_settings_v1';
-// { volume:0.7, shake:true, damageNumbers:true, lowFx:false, streamer:false }
-```
-- `load()` com `try/catch`, valida campos com `??` (se save antigo, mescla default).
-- `save()` com `debounce` de 400ms (não escrever a cada gema coletada).
-- Botão "ZERAR SALVE" no título pede confirmação por 2s.
-
----
-
-## 8. UI (desenhada no canvas, não em DOM)
-
-- Fontes: `bold 16px monospace`, títulos `bold 42px monospace`; sempre `textAlign`/`textBaseline` setados.
-- HUD: barra de vida (esq. cima, 220×14, com texto `HP 87/120`), barra de XP (topo, largura total, 6px,
-  ciano), onda/tempo centralizado, kills canto direito, almas com ícone de gema roxa.
-- 4 ícones de habilidade no rodapé esquerdo, 46×46, com **anel de cooldown** (`arc` de 0 a 2π·pct).
-- Boss: barra vermelha larga no topo, com nome + fases (2 riscos de divisão).
-- Cartas de level up: 3 retângulos 300×180, entrada animada (`easeOutBack` 0.25s), raridade por moldura.
-- `ctx.imageSmoothingEnabled = false` na renderização de sprites; `true` nos gradientes de UI.
-
----
-
-## 9. Performance — checklist
-
-- [ ] Nenhuma alocação de array/objeto dentro do loop de desenho.
-- [ ] Partículas em **pool fixo de 400**, reciclagem por índice (`particleCursor++ % 400`).
-- [ ] Textos de dano: pool de 60; se cheio, sobrescreve o mais antigo.
-- [ ] `zombies.length` travado em `CFG.MAX_ZOMBIES` (380–420); spawn não passa disso.
-- [ ] Grid reconstruído 1×/frame; consultas usam buffer.
-- [ ] Projéteis removidos no mesmo laço por **swap-pop** (`arr[i]=arr[arr.length-1]; arr.pop()`),
-      nunca `splice` no meio de loop grande.
-- [ ] `drawImage` de sprites pré-renderizados (sem path por entidade).
-- [ ] FPS counter (tecla F3) para medir durante o desenvolvimento — pode ficar escondido.
-- [ ] Se `settings.lowFx`: desligar partículas de sangue, sombras e numerais de dano.
-
-Meta: **300 zumbis + 200 projéteis + 400 partículas ≥ 58 FPS** num notebook comum.
-
----
-
-## 10. Casos de borda a tratar (senão vira bug chato)
+## 11. Casos de borda
 
 | Caso | Tratamento |
 |---|---|
-| Zumbi morre no mesmo frame que acerta o jogador | Aplicar dano primeiro, remover depois (ordem 6→7). |
-| Projétil atravessa zumbi no mesmo frame | Verificar colisão por **segmento** (dist ponto-segmento), não por ponto. |
-| Boss spawna fora da arena | Sempre `clamp` na arena com margem 200px. |
-| Level up durante o respiro de onda | Permitir; o timer de respiro pausa junto. |
-| Matar todos os zumbis | Não encerra a onda (a onda é por tempo), só dá leve respiro. |
-| Aba perde foco | `document.hidden` → pausar; no retorno, descartar o `dt` acumulado. |
-| Janela redimensiona | Recalcular escala do canvas; câmera não muda. |
-| `localStorage` bloqueado | Fallback em objeto memória + aviso discreto no título. |
-| Perfuração de projétil | `hitIds` para não acertar o mesmo zumbi 2×; `pierce--` ao acertar novo alvo. |
-| Onda 30+ | Clampar `dmgMul` e `hpMul` em `Math.min(..., 60)` para não estourar. |
-| Fúria ativa ao morrer | Encerrar timers e efeitos visuais na transição pra GAMEOVER. |
+| Zumbi morre no mesmo frame que acerta | Dano primeiro, remoção depois (ordem 6→7). |
+| Tiro atravessa zumbi rápido | Colisão por segmento. |
+| Compra durante a trégua e a horda começa | Compra continua válida; barra de progresso não pausa. |
+| Barricada destruída com zumbi em cima | Zumbi retoma `chase`, sem ficar preso na AABB morta. |
+| Torreta sem munição | Para de atirar, mostra ícone vermelho acima, continua alvo. |
+| Vaga ocupada + jogador tenta construir | Aviso "VAGA OCUPADA" e desconta nada. |
+| Moeda insuficiente | Aviso vermelho, som seco, sem desconto. |
+| Espreitador cai dentro de parede | `clamp` no spawn para célula livre mais próxima. |
+| Jogador se entoca entre 2 paredes com horda | Zumbis quebram barricada; se não houver, atacam a parede (destruível só em modo caos >horda 40). |
+| Horda 60+ | Clampar multiplicadores em `Math.min(..., 40)` para não estourar. |
+| Alt-tab durante FIGHT | Pausa; timers congelam. |
+| Mapa sem spawn válido | Loader valida e lança erro claro no console + card desabilitado. |
 
 ---
 
-## 11. Camada de "juice" (ordem de impacto/custo)
+## 12. Checklists de aceite por marco
 
-1. **Screen shake** no impacto/chicote (3px comum, 8px explosão, 14px boss) — custo zero, impacto alto.
-2. **Flash branco** de 60ms no sprite que toma dano (`globalCompositeOperation='lighter'` num selo).
-3. **Números de dano** subindo com fade; críticos maiores e amarelos.
-4. **Partículas de sangue** (cor `#e0533f`/`#8a1f2b`), 8 por hit, gravidade leve.
-5. **Piscada de invencibilidade** no jogador (alpha alternando a cada 60ms).
-6. **Fade de entrada** de zumbis (nascem com alpha 0 → 1 em 120ms) pra não "pipocar".
-7. **Freeze frame** de 40ms na morte do boss (`G.hitstop`) — o jogo congela por 2 frames.
-8. **Vignette** vermelha pulsante com HP < 30%.
+### MARCO 1 — Base + Mapas
+- [ ] Abre por duplo-clique, console limpo.
+- [ ] Lobby desenha 6 cards de mapa; 5 com cadeado `EM BREVE` e não clicáveis.
+- [ ] Clicar em TELHADOS → fade → partida com o mapa completo.
+- [ ] Andar nas 8 direções, velocidade igual (diagonal normalizada).
+- [ ] Não atravessa parapeito, casa de máquinas, AC, caixa d'água nem duto.
+- [ ] Desliza em parede sem travar; câmera segue com amortecimento.
+- [ ] Esc volta ao lobby.
+- [ ] HUD mínimo (vida/moeda) aparece e não cobre o centro.
+- [ ] Trocar `mapId` no lobby carrega outro mapa **sem** mudar engine (teste com um 2º mapa de teste).
+- [ ] Criar um mapa novo mexe só em `maps.js`.
 
----
+### MARCO 2 — O jogo
+- [ ] Horda 1 começa com 6 zumbis, termina em abate total, `restam` chega a 0.
+- [ ] Trégua de 6 s entre hordas com resumo e sem spawn.
+- [ ] Zumbis 1–10 fracos; 11–20 mais numerosos; 21–30 resistentes; 31+ especiais aparecem.
+- [ ] 7 tipos implementados e distinguíveis em 0,2 s.
+- [ ] Moeda entra por abate; HUD atualiza; bônus de horda limpa funciona.
+- [ ] Comprar arma na parede troca o slot ativo; munição reabastece; upgrade aplica.
+- [ ] Arma sem munição não atira; `R` recarrega; recarga reduz velocidade.
+- [ ] Barricada: custo 50 → 80 → 90, tem HP, zumbi bate e quebra, `E` repara.
+- [ ] Torreta: mira, atira, gasta munição, recarrega por moeda, pode ser destruída.
+- [ ] Perk aparece em 6 s sem pausar; 1/2/3 escolhe; máx 3 slots.
+- [ ] Game over com resumo correto (horda, tempo, abates, moedas).
+- [ ] Uma run chega à horda 15 sem bug nem travamento.
 
-## 12. Checklists de aceite por marco (usar na validação)
-
-### Marco 1
-- [ ] `index.html` abre por duplo-clique, sem erro no console (F12 limpo).
-- [ ] Jogador anda nas 8 direções na mesma velocidade; diagonal não é mais rápida.
-- [ ] Tiro sai sozinho no zumbi mais próximo; sem alvo, atira na direção do mouse.
-- [ ] Zumbi toma dano, pisca, morre, solta gema; gema é atraída dentro do ímã.
-- [ ] Barra de XP enche, jogo pausa, 3 cartas aparecem, escolha por clique **e** por 1/2/3.
-- [ ] Zumbi encostando tira vida; jogador pisca; barra de vida desce; morre → GAME OVER.
-- [ ] `R` reinicia do zero (vida, XP, onda, zumbis).
-- [ ] HUD legível: vida, XP, onda, tempo, kills.
-- [ ] 3 minutos de jogo sem travar, sem entidade "fantasma" e sem NaN.
-
-### Marco 2
-- [ ] 7 tipos aparecem nas ondas certas (doc 04, seção 2) e são distinguíveis em 0,2s.
-- [ ] Elites (aura dourada) a partir da onda 3, com mais vida/dano e drop maior.
-- [ ] Boss na onda 5 com barra de vida, 3 ataques e invocação; ao morrer, respiro de 4s.
-- [ ] 4 habilidades funcionam por teclado, com anel de cooldown no HUD e CD que não corre em pausa.
-- [ ] 18+ cartas de melhoria implementadas, máx. 5 níveis, sem repetir na mesma oferta.
-- [ ] Drops de kit médico, ímã e granada aparecem e funcionam.
-- [ ] Almas são salvas e sobrevivem ao recarregar a página; a loja compra e aplica o efeito.
-- [ ] Sangue, números de dano, flash e shake acontecendo sem exagero.
-- [ ] Onda 10+ alcançável numa run normal (a dificuldade não é intransponível nem trivial).
-
-### Marco 3
-- [ ] Sons: tiro, hit, morte, level up, dano no jogador, explosão, boss (nada de som "estourado").
-- [ ] Volume ajustável e persistido; modo mudo funciona.
-- [ ] Título, COMO JOGAR, CONFIG, pausa e game over navegáveis **só por teclado**.
-- [ ] Pausa automática ao trocar de aba; retomada não dá "salto" de tempo.
-- [ ] Vinheta vermelha abaixo de 30% de vida.
-- [ ] Game over mostra tempo, onda, kills, almas, recorde; novo recorde destacado.
-- [ ] 300 zumbis: 58+ FPS e nenhum pico de GC perceptível (memória estável em 2 min).
-- [ ] Redimensionar a janela não quebra o canvas nem a câmera.
-- [ ] `docs/GDD.md` e `README.md` descrevem exatamente o que existe no jogo.
+### MARCO 3 — Lobby, meta e polimento
+- [ ] Almas acumulam por regra do doc 04 e persistem após recarregar.
+- [ ] Loja compra, aplica efeito real e bloqueia no máximo.
+- [ ] Recordes salvos e exibidos; novo recorde destacado.
+- [ ] Config afeta o jogo de verdade (volume, auto-fire, shake, lowFx, streamer).
+- [ ] Áudio: tiro, recarga, impacto, moeda, construção, quebra, horda limpa, dano, morte.
+- [ ] Pausa com Esc e automática ao trocar de aba; retomada sem salto.
+- [ ] 150 zumbis ≥ 58 FPS; stress 300 sem travar.
+- [ ] Redimensionar janela não quebra canvas, câmera nem HUD.
+- [ ] `docs/MAPAS.md` permite criar mapa novo em <1h (testado com um exemplo).
+- [ ] README e GDD descrevem exatamente o que existe.
